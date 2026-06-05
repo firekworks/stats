@@ -42,9 +42,7 @@ export async function POST(request: Request) {
 
   const admin = getSupabaseAdminClient();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publicKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const publicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (
     !admin ||
@@ -155,8 +153,16 @@ async function validateAccess(
     .eq("user_id", userId)
     .maybeSingle<ProfileRow>();
 
-  if (profile?.is_active && internalRoles.has(profile.role)) {
+  if (!profile?.is_active) {
+    return { ok: false, route: "/login" };
+  }
+
+  if (internalRoles.has(profile.role)) {
     return { ok: true, route: "/admin" };
+  }
+
+  if (profile.role !== "client") {
+    return { ok: false, route: "/login" };
   }
 
   const { data: clientUser, error } = await admin

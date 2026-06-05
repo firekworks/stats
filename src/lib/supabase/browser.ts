@@ -7,12 +7,10 @@ let browserClient: SupabaseClient | null = null;
 
 export function getSupabaseBrowserConfigError() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    return "Falta NEXT_PUBLIC_SUPABASE_URL y una clave publica de Supabase";
+    return "Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY";
   }
 
   if (key.startsWith("sb_secret_") || key.includes("service_role")) {
@@ -24,9 +22,7 @@ export function getSupabaseBrowserConfigError() {
 
 export function getSupabaseBrowserClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key || getSupabaseBrowserConfigError()) {
     return null;

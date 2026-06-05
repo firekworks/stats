@@ -46,19 +46,19 @@ Proyecto usado:
 - Ref: `xmkhdjjnxlpwqeatiwfx`
 - URL: `https://xmkhdjjnxlpwqeatiwfx.supabase.co`
 
-Migracion preparada en este repo; no aplicada en Supabase remoto desde este trabajo:
+Migracion preparada en este repo y compatible con la base remota actual:
 
 - `supabase/migrations/20260605_stats_auth_and_portal_compat.sql`
 
 Esa migración:
 
 - No recrea `leads`.
-- No recrea `profiles`.
+- No recrea `profiles`; amplía sus roles para aceptar `client`.
 - No recrea `clients`.
 - No recrea `audit_logs`.
 - Añade campos de portal a `clients`.
-- Mantiene `profiles` para roles internos (`admin`, `sales`, `viewer`).
-- Usa `client_users` y `client_login_aliases` para clientes externos.
+- Mantiene `profiles` para roles internos (`admin`, `sales`, `viewer`) y clientes (`client`).
+- Usa `client_users` y `client_login_aliases` para vincular clientes externos sin exponer su email técnico.
 - Crea tablas nuevas de Stats.
 - Activa RLS en tablas nuevas.
 - Crea vistas seguras para el portal cliente.
@@ -76,13 +76,14 @@ insert into public.profiles (user_id, email, full_name, role)
 values ('AUTH_USER_ID', 'email@firekworks.es', 'Firekworks Admin', 'admin');
 ```
 
-Roles internos disponibles en `profiles`:
+Roles disponibles en `profiles`:
 
 - `admin`: puede administrar.
 - `sales`: puede editar datos comerciales.
 - `viewer`: puede ver datos internos.
+- `client`: puede entrar solo en el portal de cliente asociado.
 
-Los clientes del portal no necesitan fila en `profiles`; se autorizan por `client_users` y alias privado de login.
+Los clientes del portal necesitan fila `profiles.role = 'client'` y se autorizan además por `client_users` y alias privado de login.
 
 ## Dar Acceso A Un Cliente
 
@@ -91,7 +92,7 @@ Los clientes del portal no necesitan fila en `profiles`; se autorizan por `clien
 3. Abre `/admin/client-access`.
 4. Selecciona cliente, revisa usuario sugerido y crea contraseña temporal.
 
-El sistema crea el Auth user, `client_users`, `client_login_aliases` y habilita `client_portal_enabled`. El cliente inicia sesión con usuario/contraseña; el email técnico no se muestra en la UI cliente.
+El sistema crea el Auth user, `profiles`, `client_users`, `client_login_aliases` y habilita `client_portal_enabled`. El cliente inicia sesión con usuario/contraseña; el email técnico no se muestra en la UI cliente.
 
 ## Despliegue En Vercel
 

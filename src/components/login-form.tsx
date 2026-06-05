@@ -37,7 +37,7 @@ export function LoginForm({
       return;
     }
 
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch("/api/auth/username-login", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ username, password })

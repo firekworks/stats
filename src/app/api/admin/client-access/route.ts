@@ -101,6 +101,14 @@ export async function POST(request: Request) {
 
   const userId = authUser.user.id;
 
+  const { error: profileError } = await auth.admin.from("profiles").upsert({
+    user_id: userId,
+    email: authEmail,
+    full_name: fullName,
+    role: "client",
+    is_active: true
+  });
+
   const { error: clientUserError } = await auth.admin.from("client_users").upsert({
     client_id: clientId,
     user_id: userId,
@@ -126,7 +134,7 @@ export async function POST(request: Request) {
     })
     .eq("id", clientId);
 
-  const firstError = clientUserError || aliasError || clientError;
+  const firstError = profileError || clientUserError || aliasError || clientError;
 
   if (firstError) {
     return NextResponse.json({ error: firstError.message }, { status: 500 });
