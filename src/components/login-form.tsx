@@ -33,7 +33,11 @@ export function LoginForm({
 
     if (!supabase) {
       setLoading(false);
-      setMessage(getSupabaseBrowserConfigError() || "Supabase no disponible");
+      setMessage(
+        getSupabaseBrowserConfigError()
+          ? "El acceso no está disponible ahora mismo. Inténtalo de nuevo en unos minutos."
+          : "El acceso no está disponible ahora mismo."
+      );
       return;
     }
 
@@ -78,7 +82,7 @@ export function LoginForm({
         <label htmlFor="username">{usernameLabel}</label>
         <div className="relative">
           <UserRound
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6e6e73]"
+            className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#6e6e73]"
             size={18}
           />
           <input
@@ -86,7 +90,7 @@ export function LoginForm({
             type="text"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
-            className="w-full pl-11"
+            className="login-input w-full pl-[52px] pr-4"
             autoComplete="username"
             required
             placeholder={usernameLabel}
@@ -98,7 +102,7 @@ export function LoginForm({
         <label htmlFor="password">{passwordLabel}</label>
         <div className="relative">
           <LockKeyhole
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6e6e73]"
+            className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-[#6e6e73]"
             size={18}
           />
           <input
@@ -106,14 +110,14 @@ export function LoginForm({
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full px-11"
+            className="login-input w-full pl-[52px] pr-14"
             autoComplete="current-password"
             minLength={10}
             required
           />
           <button
             aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
-            className="icon-button absolute right-1 top-1/2 -translate-y-1/2 scale-90"
+            className="icon-button login-eye-button absolute right-4 top-1/2 -translate-y-1/2"
             type="button"
             onClick={() => setShowPassword((value) => !value)}
           >
@@ -133,7 +137,7 @@ export function LoginForm({
 
       {message ? <p className="m-0 text-sm text-[#d92d20]">{message}</p> : null}
 
-      <button className="button justify-center" disabled={loading} type="submit">
+      <button className="button login-submit justify-center" disabled={loading} type="submit">
         <ShieldCheck size={18} />
         {loading ? "Entrando..." : buttonLabel}
       </button>

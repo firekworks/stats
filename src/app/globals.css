@@ -5,6 +5,7 @@
   --surface: #ffffff;
   --surface-muted: #fbfbfd;
   --text: #1d1d1f;
+  --brand-ink: #001020;
   --secondary: #6e6e73;
   --border: #e5e5ea;
   --blue: #0071e3;
@@ -88,7 +89,7 @@ button {
 
 .firekworks-mark {
   align-items: center;
-  background: #111;
+  background: var(--brand-ink);
   border-radius: 14px;
   color: white;
   display: inline-flex;
@@ -150,7 +151,7 @@ button {
 }
 
 .nav-link-active {
-  background: #1d1d1f;
+  background: var(--brand-ink);
   color: white;
 }
 
@@ -222,9 +223,9 @@ button {
 
 .button {
   align-items: center;
-  border: 1px solid #1d1d1f;
+  border: 1px solid var(--brand-ink);
   border-radius: 999px;
-  background: #1d1d1f;
+  background: var(--brand-ink);
   color: white;
   display: inline-flex;
   font-weight: 780;
@@ -296,6 +297,14 @@ button {
 .card-muted {
   background: var(--surface-muted);
   box-shadow: none;
+}
+
+.login-form-panel {
+  background: var(--surface-muted);
+  border: 1px solid rgba(229, 229, 234, 0.92);
+  border-radius: 22px;
+  min-width: 0;
+  padding: clamp(22px, 3vw, 30px);
 }
 
 .metric-card {
@@ -540,19 +549,27 @@ button {
   align-items: center;
   display: grid;
   min-height: 100vh;
-  padding: 24px;
+  padding: clamp(20px, 4vw, 56px);
 }
 
 .login-card {
   margin: 0 auto;
-  max-width: 980px;
+  max-width: 1040px;
+  padding: clamp(24px, 4vw, 46px);
   width: 100%;
 }
 
 .login-grid {
+  align-items: center;
+  display: grid;
+  gap: clamp(28px, 6vw, 72px);
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+}
+
+.login-intro {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+  min-width: 0;
 }
 
 .login-brand-row {
@@ -562,7 +579,7 @@ button {
   font-size: 0.92rem;
   font-weight: 850;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 28px;
 }
 
 .login-brand-row .firekworks-mark {
@@ -570,36 +587,20 @@ button {
   width: 36px;
 }
 
-.login-benefits {
-  display: grid;
-  gap: 10px;
-  list-style: none;
+.login-title {
+  font-size: clamp(2.55rem, 5vw, 4.7rem);
+  font-weight: 850;
+  line-height: 0.98;
   margin: 0;
-  padding: 0;
+  max-width: 560px;
 }
 
-.login-benefits li {
-  align-items: center;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  color: var(--text);
-  display: flex;
-  font-weight: 760;
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 14px;
-}
-
-.login-benefits li span {
-  align-items: center;
-  background: rgba(0, 113, 227, 0.1);
-  border-radius: 999px;
-  color: var(--blue);
-  display: inline-flex;
-  height: 30px;
-  justify-content: center;
-  width: 30px;
+.login-subtitle {
+  color: var(--secondary);
+  font-size: 1.08rem;
+  line-height: 1.48;
+  margin: 22px 0 0;
+  max-width: 520px;
 }
 
 .public-home {
@@ -695,12 +696,25 @@ button {
   background: white;
   border: 1px solid var(--border);
   border-radius: 16px;
-  min-height: 48px;
+  min-height: 54px;
   padding: 0 14px;
   outline: none;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease;
+}
+
+.login-input {
+  min-height: 56px;
+}
+
+.login-eye-button {
+  min-height: 38px;
+  width: 38px;
+}
+
+.login-submit {
+  min-height: 52px;
 }
 
 .field textarea {
@@ -814,6 +828,20 @@ button {
   background: rgba(47, 158, 68, 0.1);
   border-color: rgba(47, 158, 68, 0.22);
   color: var(--green);
+}
+
+.pdf-download-wrap {
+  align-items: flex-start;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pdf-download-error {
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 720;
+  max-width: 220px;
 }
 
 @keyframes loading {

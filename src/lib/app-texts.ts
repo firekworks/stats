@@ -16,7 +16,7 @@ export const statsEditableTexts = [
   {
     key: "stats.login.subtitle",
     label: "Subtitulo login",
-    fallback: "Accede con tu usuario de cliente."
+    fallback: "Accede a tus métricas, informes y facturas desde un único panel."
   },
   {
     key: "stats.login.username_label",

@@ -27,17 +27,19 @@ export async function GET(
   const pdf = await buildInvoicePdf(input);
   const storagePath = `${input.invoice.clientId}/invoices/${input.invoice.invoiceNumber}.pdf`;
 
-  await profile.admin.storage
-    .from(process.env.SUPABASE_INVOICES_BUCKET ?? "stats-invoices")
-    .upload(storagePath, pdf, {
-      contentType: "application/pdf",
-      upsert: true
-    });
+  if (!input.isDemoData) {
+    await profile.admin.storage
+      .from(process.env.SUPABASE_INVOICES_BUCKET ?? "stats-invoices")
+      .upload(storagePath, pdf, {
+        contentType: "application/pdf",
+        upsert: true
+      });
 
-  await profile.admin
-    .from("invoices")
-    .update({ pdf_storage_path: storagePath })
-    .eq("id", input.invoice.id);
+    await profile.admin
+      .from("invoices")
+      .update({ pdf_storage_path: storagePath })
+      .eq("id", input.invoice.id);
+  }
 
   return new NextResponse(Buffer.from(pdf), {
     headers: {

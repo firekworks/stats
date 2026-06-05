@@ -1,11 +1,14 @@
 import {
   PDFDocument,
   type PDFFont,
+  type PDFImage,
   type PDFPage,
   type RGB,
   StandardFonts,
   rgb
 } from "pdf-lib";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { BillingSettings } from "@/lib/billing-settings";
 import {
   formatCurrency,
@@ -34,12 +37,14 @@ export type MonthlyReportPdfInput = {
   metric: MonthlyMetric;
   campaigns: Campaign[];
   content: ContentItem[];
+  isDemoData?: boolean;
 };
 
 export type InvoicePdfInput = {
   billing: BillingSettings;
   client: PdfClient;
   invoice: Invoice;
+  isDemoData?: boolean;
 };
 
 export async function buildMonthlyReportPdf(input: MonthlyReportPdfInput) {
@@ -64,6 +69,13 @@ export async function buildMonthlyReportPdf(input: MonthlyReportPdfInput) {
       metric.estimatedRoi ? `${formatDecimal(metric.estimatedRoi, 2)}x` : "Sin datos"
     ]
   ]);
+
+  if (input.isDemoData) {
+    layout.section(
+      "Estado de datos",
+      "Datos de demostracion / pendiente de integracion. Este PDF sirve para validar la maqueta y la descarga, no como informe real de cliente."
+    );
+  }
 
   layout.section("Resumen ejecutivo", metric.summary || "Sin resumen registrado.");
   layout.section("Diagnostico", metric.diagnosis || "Sin diagnostico registrado.");
@@ -161,6 +173,12 @@ export async function buildInvoicePdf(input: InvoicePdfInput) {
     ],
     ["Total", formatCurrency(invoice.total)]
   ]);
+  if (input.isDemoData) {
+    layout.section(
+      "Aviso",
+      "Factura de demostracion / pendiente de datos reales. Configura cliente, conceptos y datos fiscales antes de emitir una factura real."
+    );
+  }
   layout.section(
     "Notas",
     invoice.publicNotes ||
@@ -176,6 +194,7 @@ class PdfLayout {
   private readonly regular: PDFFont;
   private readonly bold: PDFFont;
   private readonly footerText: string;
+  private readonly brandImage: PDFImage | null;
   private page: PDFPage;
   private pageNumber = 0;
   private y = 0;
@@ -184,12 +203,14 @@ class PdfLayout {
     doc: PDFDocument,
     regular: PDFFont,
     bold: PDFFont,
-    footerText: string
+    footerText: string,
+    brandImage: PDFImage | null
   ) {
     this.doc = doc;
     this.regular = regular;
     this.bold = bold;
     this.footerText = footerText;
+    this.brandImage = brandImage;
     this.page = this.doc.addPage([595, 842]);
     this.decoratePage();
   }
@@ -198,8 +219,9 @@ class PdfLayout {
     const doc = await PDFDocument.create();
     const regular = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const brandImage = await loadBrandImage(doc);
 
-    return new PdfLayout(doc, regular, bold, footerText);
+    return new PdfLayout(doc, regular, bold, footerText, brandImage);
   }
 
   cover(billing: BillingSettings, title: string, main: string, subtitle: string) {
@@ -320,31 +342,23 @@ class PdfLayout {
   }
 
   private drawBrand(billing: BillingSettings) {
-    this.page.drawRectangle({
-      x: 58,
-      y: 790,
-      width: 36,
-      height: 36,
-      color: ink
-    });
-    this.page.drawLine({
-      start: { x: 68, y: 804 },
-      end: { x: 82, y: 818 },
-      color: white,
-      thickness: 3
-    });
-    this.page.drawLine({
-      start: { x: 70, y: 798 },
-      end: { x: 86, y: 814 },
-      color: white,
-      thickness: 2
-    });
-    this.page.drawLine({
-      start: { x: 82, y: 818 },
-      end: { x: 88, y: 812 },
-      color: white,
-      thickness: 2
-    });
+    if (this.brandImage) {
+      this.page.drawImage(this.brandImage, {
+        x: 58,
+        y: 790,
+        width: 36,
+        height: 36
+      });
+    } else {
+      this.page.drawRectangle({
+        x: 58,
+        y: 790,
+        width: 36,
+        height: 36,
+        color: ink
+      });
+      this.text("F", 70, 801, 16, this.bold, white);
+    }
     this.text(billing.businessName || "Firekworks", 106, 812, 12, this.bold, ink);
     this.text("Stats", 106, 796, 9, this.regular, muted);
   }
@@ -421,4 +435,13 @@ function clean(value: string | number | null | undefined) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\x20-\x7E\n]/g, "");
+}
+
+async function loadBrandImage(doc: PDFDocument) {
+  try {
+    const icon = await readFile(join(process.cwd(), "public/brand/firekworks-icon.png"));
+    return await doc.embedPng(icon);
+  } catch {
+    return null;
+  }
 }

@@ -16,7 +16,11 @@ export const metadata: Metadata = {
   title: "Stats | Firekworks",
   description: "Portal privado de resultados para clientes Firekworks",
   icons: {
-    icon: "/brand/firekworks-mark.svg"
+    icon: [
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.ico", rel: "shortcut icon" }
+    ],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }]
   }
 };
 

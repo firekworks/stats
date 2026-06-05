@@ -1,4 +1,11 @@
 import { getBillingSettings } from "@/lib/billing-settings";
+import {
+  campaigns as demoCampaigns,
+  clients as demoClients,
+  contentItems as demoContent,
+  invoices as demoInvoices,
+  monthlyMetrics as demoMetrics
+} from "@/lib/demo-data";
 import type { InvoicePdfInput, MonthlyReportPdfInput } from "@/lib/pdf";
 import type { Campaign, Client, ContentItem, Invoice, MonthlyMetric } from "@/lib/types";
 import type { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -20,7 +27,32 @@ export async function getMonthlyReportPdfInput(
     .maybeSingle<Row>();
 
   if (!clientRow) {
-    return null;
+    const demoClient = demoClients.find((client) => client.id === clientId);
+
+    if (!demoClient) {
+      return null;
+    }
+
+    const metric =
+      demoMetrics
+        .filter(
+          (item) =>
+            item.clientId === clientId &&
+            (!month || item.month === month) &&
+            (!year || item.year === year)
+        )
+        .sort((a, b) => b.year - a.year || b.month - a.month)[0] ??
+      demoMetrics.find((item) => item.clientId === clientId) ??
+      demoMetrics[0];
+
+    return {
+      billing: settings,
+      client: demoClient,
+      metric,
+      campaigns: demoCampaigns.filter((campaign) => campaign.clientId === clientId),
+      content: demoContent.filter((item) => item.clientId === clientId),
+      isDemoData: true
+    };
   }
 
   let metricQuery = admin
@@ -88,7 +120,21 @@ export async function getInvoicePdfInput(
     .maybeSingle<Row>();
 
   if (!invoiceRow) {
-    return null;
+    const demoInvoice = demoInvoices.find((invoice) => invoice.id === invoiceId);
+    const demoClient = demoInvoice
+      ? demoClients.find((client) => client.id === demoInvoice.clientId)
+      : null;
+
+    if (!demoInvoice || !demoClient) {
+      return null;
+    }
+
+    return {
+      billing: settings,
+      client: demoClient,
+      invoice: demoInvoice,
+      isDemoData: true
+    };
   }
 
   const clientId = String(invoiceRow.client_id ?? "");

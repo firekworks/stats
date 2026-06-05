@@ -12,7 +12,7 @@ create table if not exists public.billing_settings (
   default_vat_rate numeric(5,2) not null default 21 check (default_vat_rate >= 0),
   default_retention_rate numeric(5,2) not null default 0 check (default_retention_rate >= 0),
   footer_text text not null default 'Emision fiscal definitiva pendiente de validacion con asesoria.',
-  logo_url text not null default '/brand/firekworks-mark.svg',
+  logo_url text not null default '/brand/firekworks-icon.png',
   updated_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -101,5 +101,5 @@ select
   21,
   0,
   'Emision fiscal definitiva pendiente de validacion con asesoria.',
-  '/brand/firekworks-mark.svg'
+  '/brand/firekworks-icon.png'
 where not exists (select 1 from public.billing_settings);

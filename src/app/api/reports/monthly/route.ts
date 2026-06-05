@@ -33,30 +33,32 @@ export async function GET(request: Request) {
     input.metric.month
   ).padStart(2, "0")}.pdf`;
 
-  await profile.admin.storage
+  if (!input.isDemoData) {
+    await profile.admin.storage
       .from(process.env.SUPABASE_REPORTS_BUCKET ?? "stats-reports")
       .upload(storagePath, pdf, {
         contentType: "application/pdf",
         upsert: true
       });
 
-  await profile.admin.from("monthly_reports").upsert(
-    {
-      client_id: clientId,
-      month: input.metric.month,
-      year: input.metric.year,
-      title: `Informe mensual - ${input.metric.month}/${input.metric.year}`,
-      status: "generated",
-      pdf_storage_path: storagePath,
-      generated_at: new Date().toISOString()
-    },
-    { onConflict: "client_id,month,year" }
-  );
+    await profile.admin.from("monthly_reports").upsert(
+      {
+        client_id: clientId,
+        month: input.metric.month,
+        year: input.metric.year,
+        title: `Informe mensual - ${input.metric.month}/${input.metric.year}`,
+        status: "generated",
+        pdf_storage_path: storagePath,
+        generated_at: new Date().toISOString()
+      },
+      { onConflict: "client_id,month,year" }
+    );
+  }
 
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="firekworks-stats-${clientId}-${input.metric.year}-${input.metric.month}.pdf"`
+      "Content-Disposition": `attachment; filename="firekworks-stats-informe-${input.metric.year}-${String(input.metric.month).padStart(2, "0")}.pdf"`
     }
   });
 }

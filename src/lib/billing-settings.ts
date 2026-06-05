@@ -30,7 +30,7 @@ export const defaultBillingSettings: BillingSettings = {
   defaultRetentionRate: 0,
   footerText:
     "Emision fiscal definitiva pendiente de validacion con asesoria.",
-  logoUrl: "/brand/firekworks-mark.svg"
+  logoUrl: "/brand/firekworks-icon.png"
 };
 
 type BillingSettingsRow = {

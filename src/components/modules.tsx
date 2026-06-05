@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   CheckCircle2,
-  Download,
   ExternalLink,
   FileText,
   LockKeyhole,
@@ -11,6 +10,7 @@ import {
   UploadCloud
 } from "lucide-react";
 import { ButtonLink, Card, CardHeader, StatusBadge } from "@/components/ui";
+import { PdfDownloadButton } from "@/components/pdf-download-button";
 import {
   formatCurrency,
   formatDecimal,
@@ -211,13 +211,10 @@ export function ReportsModule({
         title="Informes PDF"
         description={admin ? "Generacion mensual" : "Descargas"}
         action={
-          <ButtonLink
-            href={`/api/reports/monthly?clientId=${clientId}`}
-            download
-          >
-            <Download size={17} />
-            {admin ? "Generar informe mensual" : "Descargar informe"}
-          </ButtonLink>
+          <PdfDownloadButton
+            href={`/api/admin/reports/monthly/pdf?clientId=${clientId}`}
+            label={admin ? "Generar informe mensual" : "Descargar informe"}
+          />
         }
       />
       <div className="mt-5 list">
@@ -293,14 +290,11 @@ export function InvoicesModule({
                   <StatusBadge status={invoice.status} />
                 </td>
                 <td>
-                  <ButtonLink
-                    href={`/api/invoices/${invoice.id}/pdf`}
+                  <PdfDownloadButton
+                    href={`/api/admin/invoices/${invoice.id}/pdf`}
+                    label="PDF"
                     variant="secondary"
-                    download
-                  >
-                    <Download size={16} />
-                    PDF
-                  </ButtonLink>
+                  />
                 </td>
               </tr>
             ))}

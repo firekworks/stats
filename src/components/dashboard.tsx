@@ -3,7 +3,6 @@ import {
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
-  Download,
   Eye,
   FileBarChart,
   Megaphone,
@@ -17,8 +16,8 @@ import {
   WalletCards
 } from "lucide-react";
 import { CampaignBars, MonthlyTrendChart } from "@/components/charts";
+import { PdfDownloadButton } from "@/components/pdf-download-button";
 import {
-  ButtonLink,
   Card,
   CardHeader,
   MetricCard,
@@ -244,13 +243,10 @@ export function ClientDashboard({ data }: { data: PortalData }) {
             title="Informes y facturas"
             description="Documentos"
             action={
-              <ButtonLink
-                href={`/api/reports/monthly?clientId=${data.selectedClient.id}`}
-                download
-              >
-                <Download size={17} />
-                Informe
-              </ButtonLink>
+              <PdfDownloadButton
+                href={`/api/admin/reports/monthly/pdf?clientId=${data.selectedClient.id}`}
+                label="Informe"
+              />
             }
           />
           <div className="mt-5 list">
