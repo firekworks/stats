@@ -1,14 +1,24 @@
 "use client";
 
-import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { getSupabaseBrowserClient, getSupabaseBrowserConfigError } from "@/lib/supabase/browser";
 
-export function LoginForm() {
+export function LoginForm({
+  usernameLabel = "Usuario",
+  passwordLabel = "Contraseña",
+  buttonLabel = "Entrar",
+  invalidMessage = "Usuario o contraseña incorrectos"
+}: {
+  usernameLabel?: string;
+  passwordLabel?: string;
+  buttonLabel?: string;
+  invalidMessage?: string;
+}) {
   const router = useRouter();
-  const [email, setEmail] = useState("cliente@firekworks.demo");
-  const [password, setPassword] = useState("StatsDemo2026!");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -22,51 +32,70 @@ export function LoginForm() {
     const supabase = getSupabaseBrowserClient();
 
     if (!supabase) {
-      localStorage.setItem("stats.rememberDevice", String(remember));
-      router.push(email.includes("admin") ? "/admin" : "/client");
+      setLoading(false);
+      setMessage(getSupabaseBrowserConfigError() || "Supabase no disponible");
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const payload = (await response.json()) as {
+      accessToken?: string;
+      refreshToken?: string;
+      route?: string;
+      error?: string;
+    };
+
+    if (!response.ok || !payload.accessToken || !payload.refreshToken) {
+      setLoading(false);
+      setMessage(payload.error || invalidMessage);
+      return;
+    }
+
+    const { error } = await supabase.auth.setSession({
+      access_token: payload.accessToken,
+      refresh_token: payload.refreshToken
     });
 
     setLoading(false);
 
     if (error) {
-      setMessage(error.message);
+      setMessage("No se pudo guardar la sesión");
       return;
     }
 
     localStorage.setItem("stats.rememberDevice", String(remember));
-    router.push(email.includes("admin") ? "/admin" : "/client");
+    router.push(payload.route || "/client");
     router.refresh();
   }
 
   return (
     <form className="form" onSubmit={handleSubmit}>
       <div className="field">
-        <label htmlFor="email">Email</label>
+        <label htmlFor="username">{usernameLabel}</label>
         <div className="relative">
-          <Mail
+          <UserRound
             className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6e6e73]"
             size={18}
           />
           <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            id="username"
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
             className="w-full pl-11"
-            autoComplete="email"
+            autoComplete="username"
             required
+            placeholder={usernameLabel}
           />
         </div>
       </div>
 
       <div className="field">
-        <label htmlFor="password">Contraseña</label>
+        <label htmlFor="password">{passwordLabel}</label>
         <div className="relative">
           <LockKeyhole
             className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6e6e73]"
@@ -79,7 +108,7 @@ export function LoginForm() {
             onChange={(event) => setPassword(event.target.value)}
             className="w-full px-11"
             autoComplete="current-password"
-            minLength={12}
+            minLength={10}
             required
           />
           <button
@@ -106,7 +135,7 @@ export function LoginForm() {
 
       <button className="button justify-center" disabled={loading} type="submit">
         <ShieldCheck size={18} />
-        {loading ? "Entrando..." : "Entrar"}
+        {loading ? "Entrando..." : buttonLabel}
       </button>
     </form>
   );

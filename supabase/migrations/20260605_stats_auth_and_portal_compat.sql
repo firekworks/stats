@@ -6,15 +6,8 @@ create schema if not exists private;
 -- public.leads, public.profiles, public.clients, public.lead_to_client_links,
 -- public.lead_scores, public.lead_activities, public.lead_notes,
 -- public.lead_tasks, public.lead_sources, public.lead_duplicates, public.audit_logs.
-
--- Required to let Auth users represent external client users in Stats.
--- This replaces only the CHECK constraint, not the table or data.
-alter table public.profiles
-  drop constraint if exists profiles_role_check;
-
-alter table public.profiles
-  add constraint profiles_role_check
-  check (role in ('admin', 'sales', 'viewer', 'client'));
+-- public.profiles stays owned by Leads/internal users. Stats clients are mapped
+-- through public.client_users and public.client_login_aliases.
 
 alter table public.clients add column if not exists legal_name text;
 alter table public.clients add column if not exists postal_code text;
@@ -45,6 +38,31 @@ create table if not exists public.client_users (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (client_id, user_id)
+);
+
+create table if not exists public.client_login_aliases (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references public.clients(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  username text not null,
+  auth_email text not null,
+  is_active boolean not null default true,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (username),
+  unique (auth_email)
+);
+
+create table if not exists public.app_texts (
+  id uuid primary key default gen_random_uuid(),
+  app text not null,
+  key text not null,
+  value text not null,
+  updated_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (app, key)
 );
 
 create table if not exists public.plans (
@@ -357,6 +375,20 @@ create table if not exists public.alerts (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.tasks (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid references public.clients(id) on delete cascade,
+  title text not null,
+  description text,
+  status text not null default 'pending' check (status in ('pending', 'in_progress', 'done', 'blocked', 'cancelled')),
+  due_date date,
+  visible_to_client boolean not null default true,
+  assigned_to uuid references auth.users(id) on delete set null,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.report_files (
   id uuid primary key default gen_random_uuid(),
   report_id uuid not null references public.monthly_reports(id) on delete cascade,
@@ -377,6 +409,10 @@ create table if not exists public.invoice_files (
 
 create index if not exists idx_client_users_user_id on public.client_users(user_id);
 create index if not exists idx_client_users_client_id on public.client_users(client_id);
+create index if not exists idx_client_login_aliases_client_id on public.client_login_aliases(client_id);
+create index if not exists idx_client_login_aliases_user_id on public.client_login_aliases(user_id);
+create index if not exists idx_client_login_aliases_username_active on public.client_login_aliases(username) where is_active = true;
+create index if not exists idx_app_texts_app_key on public.app_texts(app, key);
 create index if not exists idx_campaigns_client_id on public.campaigns(client_id);
 create index if not exists idx_campaign_metrics_client_id on public.campaign_metrics(client_id);
 create index if not exists idx_content_items_client_id on public.content_items(client_id);
@@ -385,6 +421,7 @@ create index if not exists idx_monthly_metrics_client_month on public.monthly_me
 create index if not exists idx_monthly_reports_client_month on public.monthly_reports(client_id, year desc, month desc);
 create index if not exists idx_invoices_client_id on public.invoices(client_id);
 create index if not exists idx_alerts_client_id on public.alerts(client_id);
+create index if not exists idx_tasks_client_id on public.tasks(client_id);
 
 create or replace function private.is_client_user(target_client_id uuid)
 returns boolean
@@ -396,12 +433,11 @@ as $$
   select exists (
     select 1
     from public.client_users cu
-    join public.profiles p on p.user_id = cu.user_id
+    join public.clients c on c.id = cu.client_id
     where cu.client_id = target_client_id
       and cu.user_id = auth.uid()
       and cu.is_active = true
-      and p.role = 'client'
-      and p.is_active = true
+      and c.client_portal_enabled = true
   );
 $$;
 
@@ -436,11 +472,11 @@ declare
   target_table text;
 begin
   foreach target_table in array array[
-    'client_users', 'plans', 'services', 'client_subscriptions', 'campaigns',
+    'client_users', 'client_login_aliases', 'app_texts', 'plans', 'services', 'client_subscriptions', 'campaigns',
     'campaign_metrics', 'content_items', 'content_metrics', 'monthly_metrics',
     'monthly_reports', 'invoices', 'invoice_items', 'payments', 'leaderboards',
     'leaderboard_entries', 'client_scores', 'client_score_events', 'integrations',
-    'integration_sync_logs', 'alerts', 'report_files', 'invoice_files'
+    'integration_sync_logs', 'alerts', 'tasks', 'report_files', 'invoice_files'
   ]
   loop
     execute format('alter table public.%I enable row level security', target_table);
@@ -457,7 +493,8 @@ begin
     'monthly_metrics', 'monthly_reports', 'invoices', 'payments',
     'leaderboards', 'leaderboard_entries', 'client_scores',
     'client_score_events', 'integrations', 'integration_sync_logs',
-    'alerts', 'report_files', 'invoice_files', 'client_subscriptions'
+    'alerts', 'tasks', 'report_files', 'invoice_files', 'client_subscriptions',
+    'client_login_aliases'
   ]
   loop
     if not exists (
@@ -542,7 +579,63 @@ begin
     create policy services_write_internal on public.services
       for all to authenticated using (private.can_edit_leads()) with check (private.can_edit_leads());
   end if;
+
+  grant select on public.app_texts to anon, authenticated;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_texts' and policyname='app_texts_select_stats_public') then
+    create policy app_texts_select_stats_public on public.app_texts
+      for select to anon, authenticated using (app = 'stats');
+  end if;
+
+  if not exists (select 1 from pg_policies where schemaname='public' and tablename='app_texts' and policyname='app_texts_write_internal') then
+    create policy app_texts_write_internal on public.app_texts
+      for all to authenticated using (private.can_edit_leads()) with check (private.can_edit_leads());
+  end if;
 end $$;
+
+insert into public.app_texts (app, key, value)
+values
+  ('stats', 'stats.login.badge', 'Firekworks Stats'),
+  ('stats', 'stats.login.title', 'Portal privado de resultados'),
+  ('stats', 'stats.login.subtitle', 'Accede con tu usuario de cliente.'),
+  ('stats', 'stats.login.username_label', 'Usuario'),
+  ('stats', 'stats.login.password_label', 'Contraseña'),
+  ('stats', 'stats.login.button', 'Entrar'),
+  ('stats', 'stats.login.error_invalid', 'Usuario o contraseña incorrectos')
+on conflict (app, key) do nothing;
+
+create or replace view public.client_profile_view
+with (security_barrier = true)
+as
+select
+  c.id,
+  c.name,
+  c.sector,
+  c.city,
+  c.address,
+  c.phone,
+  c.website,
+  c.instagram_url,
+  c.facebook_url,
+  c.whatsapp_url,
+  c.logo_url,
+  c.billing_name,
+  c.tax_id,
+  c.billing_email,
+  c.billing_address,
+  c.status,
+  c.legal_name,
+  c.average_ticket,
+  c.monthly_budget,
+  c.service_fee,
+  c.show_in_leaderboard,
+  c.public_leaderboard_name,
+  c.client_portal_enabled,
+  c.portal_status,
+  c.created_at,
+  c.updated_at
+from public.clients c
+where private.can_view_client(c.id);
 
 create or replace view public.client_dashboard_view
 with (security_barrier = true)
@@ -695,12 +788,64 @@ where lb.is_public = true
     )
   );
 
+create or replace view public.client_score_public_view
+with (security_barrier = true)
+as
+select
+  client_id,
+  score,
+  level,
+  level_name,
+  coalesce(visible_label, level_name) as visible_label,
+  coalesce(visible_label, 'Seguimiento activo.') as internal_recommendation,
+  updated_at
+from public.client_scores
+where private.can_view_client(client_id);
+
+create or replace view public.client_alerts_public_view
+with (security_barrier = true)
+as
+select
+  id,
+  client_id,
+  type,
+  severity,
+  title,
+  description,
+  'client'::text as visibility,
+  visible_to_client,
+  created_at
+from public.alerts
+where visible_to_client = true
+  and private.can_view_client(client_id);
+
+create or replace view public.client_tasks_public_view
+with (security_barrier = true)
+as
+select
+  id,
+  client_id,
+  title,
+  description,
+  status,
+  due_date,
+  visible_to_client,
+  created_at,
+  updated_at
+from public.tasks
+where visible_to_client = true
+  and private.can_view_client(client_id);
+
+grant select on public.client_profile_view to authenticated;
 grant select on public.client_dashboard_view to authenticated;
 grant select on public.client_campaigns_view to authenticated;
 grant select on public.client_content_view to authenticated;
 grant select on public.client_reports_view to authenticated;
 grant select on public.client_invoices_view to authenticated;
 grant select on public.client_leaderboard_view to authenticated;
+grant select on public.client_score_public_view to authenticated;
+grant select on public.client_alerts_public_view to authenticated;
+grant select on public.client_tasks_public_view to authenticated;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values

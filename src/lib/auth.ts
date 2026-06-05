@@ -42,23 +42,35 @@ export async function getCurrentProfile(preferredRole: Role = "client") {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("user_id, role, full_name, client_users(client_id)")
+    .select("user_id, role, full_name, is_active")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile) {
+  if (profile?.is_active && ["admin", "sales", "viewer"].includes(profile.role)) {
+    return {
+      id: profile.user_id,
+      role: profile.role as Role,
+      clientId: null,
+      fullName: profile.full_name ?? user.email ?? "Usuario"
+    } satisfies SessionProfile;
+  }
+
+  const { data: clientUser } = await supabase
+    .from("client_users")
+    .select("client_id, is_active")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (!clientUser?.client_id) {
     redirect("/login");
   }
 
-  const firstClientUser = Array.isArray(profile.client_users)
-    ? profile.client_users[0]
-    : profile.client_users;
-
   return {
-    id: profile.user_id,
-    role: profile.role as Role,
-    clientId: firstClientUser?.client_id ?? null,
-    fullName: profile.full_name ?? user.email ?? "Usuario"
+    id: user.id,
+    role: "client",
+    clientId: clientUser.client_id,
+    fullName: user.user_metadata?.full_name ?? user.email ?? "Cliente"
   } satisfies SessionProfile;
 }
 
@@ -66,7 +78,7 @@ export async function requireRole(role: Role) {
   const profile = await getCurrentProfile(role);
 
   if (profile.role !== role) {
-    redirect(profile.role === "admin" ? "/admin" : "/client");
+    redirect(["admin", "sales", "viewer"].includes(profile.role) ? "/admin" : "/client");
   }
 
   return profile;

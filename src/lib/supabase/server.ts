@@ -8,7 +8,7 @@ export async function getSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!url || !key) {
+  if (!url || !key || key.startsWith("sb_secret_") || key.includes("service_role")) {
     return null;
   }
 
@@ -35,6 +35,10 @@ export async function getSupabaseServerClient() {
 let adminClient: SupabaseClient | null = null;
 
 export function getSupabaseAdminClient() {
+  if (typeof window !== "undefined") {
+    throw new Error("Supabase admin client cannot be used in the browser");
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

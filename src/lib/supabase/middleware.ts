@@ -7,7 +7,7 @@ export async function updateSupabaseSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!url || !key) {
+  if (!url || !key || key.startsWith("sb_secret_") || key.includes("service_role")) {
     return NextResponse.next({ request });
   }
 

@@ -26,7 +26,7 @@ En Vercel, proyecto `stats`, configura:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://xmkhdjjnxlpwqeatiwfx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_o_anon_key
 SUPABASE_SERVICE_ROLE_KEY=...
 NEXT_PUBLIC_APP_URL=https://stats.vercel.app
 ADMIN_EMAILS=tu-email@firekworks.es
@@ -35,6 +35,7 @@ SUPABASE_REPORTS_BUCKET=stats-reports
 SUPABASE_INVOICES_BUCKET=stats-invoices
 ```
 
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` puede contener la publishable/anon key pública. Nunca debe contener una `sb_secret_...`.
 `SUPABASE_SERVICE_ROLE_KEY` solo debe existir en servidor/Vercel. Nunca debe llevar `NEXT_PUBLIC_`.
 
 ## Supabase Leads
@@ -45,9 +46,9 @@ Proyecto usado:
 - Ref: `xmkhdjjnxlpwqeatiwfx`
 - URL: `https://xmkhdjjnxlpwqeatiwfx.supabase.co`
 
-Migración preparada:
+Migracion preparada en este repo; no aplicada en Supabase remoto desde este trabajo:
 
-- `supabase/migrations/202606050001_stats_extension_for_leads.sql`
+- `supabase/migrations/20260605_stats_auth_and_portal_compat.sql`
 
 Esa migración:
 
@@ -55,14 +56,15 @@ Esa migración:
 - No recrea `profiles`.
 - No recrea `clients`.
 - No recrea `audit_logs`.
-- Añade `role='client'` a `profiles`.
 - Añade campos de portal a `clients`.
+- Mantiene `profiles` para roles internos (`admin`, `sales`, `viewer`).
+- Usa `client_users` y `client_login_aliases` para clientes externos.
 - Crea tablas nuevas de Stats.
 - Activa RLS en tablas nuevas.
 - Crea vistas seguras para el portal cliente.
-- No crea policies para `anon`.
+- Permite lectura `anon` solo de textos publicos de `app_texts` para el login.
 
-Antes de aplicarla en Supabase remoto, revisar el resumen de riesgos y confirmar.
+Antes de aplicarla en Supabase remoto, revisar con el otro trabajo activo de Leads para evitar pisar cambios paralelos.
 
 ## Crear Usuario Admin
 
@@ -74,33 +76,22 @@ insert into public.profiles (user_id, email, full_name, role)
 values ('AUTH_USER_ID', 'email@firekworks.es', 'Firekworks Admin', 'admin');
 ```
 
-Roles internos disponibles:
+Roles internos disponibles en `profiles`:
 
 - `admin`: puede administrar.
 - `sales`: puede editar datos comerciales.
 - `viewer`: puede ver datos internos.
 
-El rol `client` es solo para clientes del portal y no cuenta como usuario interno.
+Los clientes del portal no necesitan fila en `profiles`; se autorizan por `client_users` y alias privado de login.
 
 ## Dar Acceso A Un Cliente
 
 1. Convierte el lead en cliente desde Firekworks Leads o crea una fila en `clients`.
-2. Crea usuario en Supabase Auth.
-3. Crea perfil:
+2. Entra en Stats como admin.
+3. Abre `/admin/client-access`.
+4. Selecciona cliente, revisa usuario sugerido y crea contraseña temporal.
 
-```sql
-insert into public.profiles (user_id, email, full_name, role)
-values ('AUTH_USER_ID', 'cliente@email.com', 'Cliente', 'client');
-```
-
-4. Relaciona el usuario con su cliente:
-
-```sql
-insert into public.client_users (client_id, user_id, role, is_active)
-values ('CLIENT_ID', 'AUTH_USER_ID', 'owner', true);
-```
-
-El cliente solo podrá ver datos vinculados a su `client_id`.
+El sistema crea el Auth user, `client_users`, `client_login_aliases` y habilita `client_portal_enabled`. El cliente inicia sesión con usuario/contraseña; el email técnico no se muestra en la UI cliente.
 
 ## Despliegue En Vercel
 

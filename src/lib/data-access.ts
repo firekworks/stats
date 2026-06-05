@@ -44,33 +44,33 @@ export async function getClientPortalData(clientId?: string) {
     tasks
   ] = await Promise.all([
     supabase
-      .from("clients")
-      .select("*, client_subscriptions(monthly_fee, plans(name))")
+      .from("client_profile_view")
+      .select("*")
       .eq("id", clientId),
     supabase
-      .from("monthly_metrics")
+      .from("client_dashboard_view")
       .select("*")
       .eq("client_id", clientId)
+      .not("month", "is", null)
       .order("year", { ascending: false })
       .order("month", { ascending: false }),
-    supabase.from("campaigns").select("*").eq("client_id", clientId),
-    supabase.from("content_items").select("*").eq("client_id", clientId),
-    supabase.from("monthly_reports").select("*").eq("client_id", clientId),
+    supabase.from("client_campaigns_view").select("*").eq("client_id", clientId),
+    supabase.from("client_content_view").select("*").eq("client_id", clientId),
+    supabase.from("client_reports_view").select("*").eq("client_id", clientId),
     supabase
-      .from("invoices")
-      .select("*, invoice_items(*)")
-      .eq("client_id", clientId),
-    supabase.from("leaderboard_entries").select("*, leaderboards(name, metric)"),
-    supabase.from("client_scores").select("*").eq("client_id", clientId),
-    supabase
-      .from("alerts")
+      .from("client_invoices_view")
       .select("*")
-      .or(`client_id.eq.${clientId},visibility.eq.client`),
+      .eq("client_id", clientId),
+    supabase.from("client_leaderboard_view").select("*"),
+    supabase.from("client_score_public_view").select("*").eq("client_id", clientId),
     supabase
-      .from("tasks")
+      .from("client_alerts_public_view")
+      .select("*")
+      .eq("client_id", clientId),
+    supabase
+      .from("client_tasks_public_view")
       .select("*")
       .eq("client_id", clientId)
-      .eq("visible_to_client", true)
   ]);
 
   if (clients.error || !clients.data?.[0]) {
@@ -205,7 +205,11 @@ function mapClient(row: Row): Client {
     ),
     planName: plan?.name ?? "Plan activo",
     planStatus:
-      row.status === "active" ? "Activo" : row.status === "paused" ? "Pausado" : "Baja",
+      row.status === "active" || row.status === "Activo"
+        ? "Activo"
+        : row.status === "paused" || row.status === "Pausado"
+          ? "Pausado"
+          : "Baja",
     monthlyFee: Number(subscription?.monthly_fee ?? row.service_fee ?? 0),
     onboardedAt: row.onboarded_at,
     publicLeaderboardName:
@@ -215,7 +219,7 @@ function mapClient(row: Row): Client {
 
 function mapMetric(row: Row): MonthlyMetric {
   return {
-    id: row.id,
+    id: row.id ?? `${row.client_id}-${row.year}-${row.month}`,
     clientId: row.client_id,
     month: Number(row.month),
     year: Number(row.year),
@@ -342,7 +346,7 @@ function mapInvoiceItem(row: Row): InvoiceItem {
 
 function mapLeaderboard(row: Row, selectedClientId: string): LeaderboardEntry {
   return {
-    id: row.id,
+    id: row.id ?? row.leaderboard_id,
     clientId: row.client_id,
     category: row.category ?? row.leaderboards?.category ?? row.leaderboards?.name ?? "Ranking",
     rank: Number(row.rank ?? row.position ?? 0),

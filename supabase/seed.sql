@@ -146,3 +146,80 @@ values
 on conflict (invoice_number) do update
 set status = excluded.status,
     total = excluded.total;
+
+insert into public.leaderboards (id, name, metric, month, year, is_public)
+values
+  ('abababab-abab-4aba-8aba-ababababab01', 'Mejor crecimiento mensual', 'growth', 4, 2026, true),
+  ('abababab-abab-4aba-8aba-ababababab02', 'Mejor ROI estimado', 'estimated_roi', 4, 2026, true)
+on conflict (name, month, year) do update
+set metric = excluded.metric,
+    is_public = excluded.is_public;
+
+insert into public.leaderboard_entries (leaderboard_id, client_id, position, value, display_name, is_anonymous)
+values
+  ('abababab-abab-4aba-8aba-ababababab01', '33333333-3333-4333-8333-333333333333', 1, 42.8, 'Cliente local #1', true),
+  ('abababab-abab-4aba-8aba-ababababab01', '11111111-1111-4111-8111-111111111111', 2, 31.4, 'Casa Lumbre', false),
+  ('abababab-abab-4aba-8aba-ababababab01', '22222222-2222-4222-8222-222222222222', 3, 18.6, 'Cliente local #3', true),
+  ('abababab-abab-4aba-8aba-ababababab02', '33333333-3333-4333-8333-333333333333', 1, 4.5294, 'Cliente local #1', true),
+  ('abababab-abab-4aba-8aba-ababababab02', '11111111-1111-4111-8111-111111111111', 2, 3.3480, 'Casa Lumbre', false),
+  ('abababab-abab-4aba-8aba-ababababab02', '22222222-2222-4222-8222-222222222222', 3, 1.9703, 'Cliente local #3', true)
+on conflict (leaderboard_id, client_id) do update
+set position = excluded.position,
+    value = excluded.value,
+    display_name = excluded.display_name,
+    is_anonymous = excluded.is_anonymous;
+
+insert into public.client_scores (
+  client_id,
+  score,
+  level,
+  level_name,
+  communication_score,
+  approval_speed_score,
+  ease_of_work_score,
+  profitability_score,
+  growth_potential_score,
+  churn_risk_score,
+  perceived_satisfaction_score,
+  internal_recommendation,
+  visible_label
+)
+values
+  ('11111111-1111-4111-8111-111111111111', 82, 4, 'Partner', 5, 4, 5, 4, 4, 2, 5, 'Candidato a caso de exito y testimonio.', 'Colaboracion Partner'),
+  ('22222222-2222-4222-8222-222222222222', 68, 3, 'Pro', 4, 3, 4, 3, 4, 3, 4, 'Proponer mejora de plan y automatizacion WhatsApp.', 'Colaboracion Pro'),
+  ('33333333-3333-4333-8333-333333333333', 88, 5, 'VIP', 5, 5, 4, 5, 5, 2, 5, 'Prioridad alta y pedir testimonio.', 'Colaboracion VIP')
+on conflict (client_id) do update
+set score = excluded.score,
+    level = excluded.level,
+    level_name = excluded.level_name,
+    communication_score = excluded.communication_score,
+    approval_speed_score = excluded.approval_speed_score,
+    ease_of_work_score = excluded.ease_of_work_score,
+    profitability_score = excluded.profitability_score,
+    growth_potential_score = excluded.growth_potential_score,
+    churn_risk_score = excluded.churn_risk_score,
+    perceived_satisfaction_score = excluded.perceived_satisfaction_score,
+    internal_recommendation = excluded.internal_recommendation,
+    visible_label = excluded.visible_label;
+
+insert into public.alerts (id, client_id, type, severity, title, description, visible_to_client)
+values
+  ('45454545-4545-4454-8454-454545454511', '33333333-3333-4333-8333-333333333333', 'upsell', 'success', 'Alto potencial de upsell', 'ROI estimado alto y buen ritmo de aprobaciones.', false),
+  ('45454545-4545-4454-8454-454545454512', '22222222-2222-4222-8222-222222222222', 'response_time', 'warning', 'Mejorar respuesta comercial', 'Los leads de tarde tardan mas de 4 horas en recibir respuesta.', false)
+on conflict (id) do update
+set severity = excluded.severity,
+    title = excluded.title,
+    description = excluded.description,
+    visible_to_client = excluded.visible_to_client;
+
+insert into public.tasks (id, client_id, title, description, status, due_date, visible_to_client)
+values
+  ('56565656-5656-4565-8565-565656565611', '11111111-1111-4111-8111-111111111111', 'Aprobar guion de reel de temporada', 'Validar platos destacados y horarios de reserva.', 'pending', '2026-05-08', true),
+  ('56565656-5656-4565-8565-565656565612', '22222222-2222-4222-8222-222222222222', 'Enviar horarios de clases de junio', 'Necesario para campana de prueba semanal.', 'in_progress', '2026-05-10', true),
+  ('56565656-5656-4565-8565-565656565613', '33333333-3333-4333-8333-333333333333', 'Confirmar ventas reales de abril', 'Permite convertir ROI estimado en ROI real.', 'pending', '2026-05-09', true)
+on conflict (id) do update
+set title = excluded.title,
+    description = excluded.description,
+    status = excluded.status,
+    due_date = excluded.due_date,
+    visible_to_client = excluded.visible_to_client;

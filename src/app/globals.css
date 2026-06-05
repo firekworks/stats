@@ -555,7 +555,9 @@ button {
   font-weight: 780;
 }
 
-.field input {
+.field input,
+.field select,
+.field textarea {
   background: white;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -567,7 +569,15 @@ button {
     box-shadow 180ms ease;
 }
 
-.field input:focus {
+.field textarea {
+  line-height: 1.45;
+  padding: 13px 14px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.1);
 }

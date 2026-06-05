@@ -44,9 +44,14 @@ export function MonthlyTrendChart({ metrics }: { metrics: MonthlyMetric[] }) {
           width={52}
         />
         <Tooltip
-          formatter={(value: number, name) =>
-            name === "inversion" ? formatCurrency(value) : formatCompactNumber(value)
-          }
+          formatter={(value, name) => {
+            const numericValue =
+              typeof value === "number" ? value : Number(value ?? 0);
+
+            return name === "inversion"
+              ? formatCurrency(numericValue)
+              : formatCompactNumber(numericValue);
+          }}
           contentStyle={{
             border: "1px solid #e5e5ea",
             borderRadius: 16,

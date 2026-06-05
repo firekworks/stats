@@ -1,49 +1,33 @@
-import {
-  BarChart3,
-  Bell,
-  BookOpenCheck,
-  ClipboardList,
-  FileBarChart,
-  FileText,
-  Gauge,
-  Home,
-  Layers3,
-  Megaphone,
-  ReceiptText,
-  Settings,
-  ShieldCheck,
-  Trophy,
-  UsersRound,
-  WandSparkles
-} from "lucide-react";
+import { Bell, BookOpenCheck } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { PortalNav } from "@/components/portal-nav";
+import { PortalNav, type PortalNavItem } from "@/components/portal-nav";
 import type { Client } from "@/lib/types";
 
-const clientLinks = [
-  { href: "/client", label: "Inicio", icon: Home },
-  { href: "/client/results", label: "Resultados", icon: BarChart3 },
-  { href: "/client/campaigns", label: "Campañas", icon: Megaphone },
-  { href: "/client/content", label: "Contenido", icon: Layers3 },
-  { href: "/client/reports", label: "Informes", icon: FileBarChart },
-  { href: "/client/invoices", label: "Facturas", icon: ReceiptText },
-  { href: "/client/ranking", label: "Ranking", icon: Trophy },
-  { href: "/client/next-steps", label: "Próximos pasos", icon: ClipboardList }
+const clientLinks: PortalNavItem[] = [
+  { href: "/client", label: "Inicio", icon: "home" },
+  { href: "/client/results", label: "Resultados", icon: "results" },
+  { href: "/client/campaigns", label: "Campañas", icon: "campaigns" },
+  { href: "/client/content", label: "Contenido", icon: "content" },
+  { href: "/client/reports", label: "Informes", icon: "reports" },
+  { href: "/client/invoices", label: "Facturas", icon: "invoices" },
+  { href: "/client/ranking", label: "Ranking", icon: "ranking" },
+  { href: "/client/next-steps", label: "Próximos pasos", icon: "tasks" }
 ];
 
-const adminLinks = [
-  { href: "/admin", label: "Dashboard", icon: Gauge },
-  { href: "/admin/clients", label: "Clientes", icon: UsersRound },
-  { href: "/admin/campaigns", label: "Campañas", icon: Megaphone },
-  { href: "/admin/content", label: "Contenido", icon: Layers3 },
-  { href: "/admin/metrics", label: "Métricas", icon: BarChart3 },
-  { href: "/admin/reports", label: "Informes", icon: FileText },
-  { href: "/admin/invoices", label: "Facturas", icon: ReceiptText },
-  { href: "/admin/leaderboards", label: "Leaderboards", icon: Trophy },
-  { href: "/admin/client-score", label: "Client Score", icon: ShieldCheck },
-  { href: "/admin/integrations", label: "Integraciones", icon: WandSparkles },
-  { href: "/admin/settings", label: "Ajustes", icon: Settings }
+const adminLinks: PortalNavItem[] = [
+  { href: "/admin", label: "Dashboard", icon: "dashboard" },
+  { href: "/admin/clients", label: "Clientes", icon: "clients" },
+  { href: "/admin/client-access", label: "Accesos", icon: "access" },
+  { href: "/admin/campaigns", label: "Campañas", icon: "campaigns" },
+  { href: "/admin/content", label: "Contenido", icon: "content" },
+  { href: "/admin/metrics", label: "Métricas", icon: "results" },
+  { href: "/admin/reports", label: "Informes", icon: "reports" },
+  { href: "/admin/invoices", label: "Facturas", icon: "invoices" },
+  { href: "/admin/leaderboards", label: "Leaderboards", icon: "ranking" },
+  { href: "/admin/client-score", label: "Client Score", icon: "score" },
+  { href: "/admin/integrations", label: "Integraciones", icon: "integrations" },
+  { href: "/admin/settings", label: "Ajustes", icon: "settings" }
 ];
 
 export function PortalShell({
@@ -85,15 +69,7 @@ export function PortalShell({
               <BookOpenCheck size={16} />
               Ver portal cliente
             </Link>
-          ) : (
-            <Link
-              href="/admin"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#0071e3]"
-            >
-              <ShieldCheck size={16} />
-              Vista admin demo
-            </Link>
-          )}
+          ) : null}
         </div>
       </aside>
       <main className="main">{children}</main>

@@ -6,7 +6,6 @@ import {
   FileText,
   LockKeyhole,
   Plus,
-  ReceiptText,
   ShieldCheck,
   Trophy,
   UploadCloud
