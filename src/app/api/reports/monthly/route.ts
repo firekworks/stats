@@ -1,31 +1,62 @@
 import { NextResponse } from "next/server";
-import { reports } from "@/lib/demo-data";
 import { buildMonthlyReportPdf } from "@/lib/pdf";
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { canAccessClient, getRequestProfile } from "@/lib/api-auth";
+import { getMonthlyReportPdfInput } from "@/lib/pdf-data";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const clientId =
-    url.searchParams.get("clientId") ??
-    "11111111-1111-4111-8111-111111111111";
-  const pdf = await buildMonthlyReportPdf(clientId);
+  const clientId = url.searchParams.get("clientId");
+  const month = Number(url.searchParams.get("month") || 0) || null;
+  const year = Number(url.searchParams.get("year") || 0) || null;
+  const profile = await getRequestProfile();
 
-  const supabase = getSupabaseAdminClient();
-  const report = reports.find((item) => item.clientId === clientId);
+  if (!profile) {
+    return NextResponse.json({ error: "Sesion requerida" }, { status: 401 });
+  }
 
-  if (supabase && report) {
-    await supabase.storage
+  if (!clientId) {
+    return NextResponse.json({ error: "clientId requerido" }, { status: 400 });
+  }
+
+  if (!canAccessClient(profile, clientId)) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  }
+
+  const input = await getMonthlyReportPdfInput(profile.admin, clientId, month, year);
+
+  if (!input) {
+    return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
+  }
+
+  const pdf = await buildMonthlyReportPdf(input);
+  const storagePath = `${clientId}/reports/${input.metric.year}-${String(
+    input.metric.month
+  ).padStart(2, "0")}.pdf`;
+
+  await profile.admin.storage
       .from(process.env.SUPABASE_REPORTS_BUCKET ?? "stats-reports")
-      .upload(report.storagePath ?? `${clientId}/reports/latest.pdf`, pdf, {
+      .upload(storagePath, pdf, {
         contentType: "application/pdf",
         upsert: true
       });
-  }
+
+  await profile.admin.from("monthly_reports").upsert(
+    {
+      client_id: clientId,
+      month: input.metric.month,
+      year: input.metric.year,
+      title: `Informe mensual - ${input.metric.month}/${input.metric.year}`,
+      status: "generated",
+      pdf_storage_path: storagePath,
+      generated_at: new Date().toISOString()
+    },
+    { onConflict: "client_id,month,year" }
+  );
 
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="firekworks-stats-${clientId}.pdf"`
+      "Content-Disposition": `attachment; filename="firekworks-stats-${clientId}-${input.metric.year}-${input.metric.month}.pdf"`
     }
   });
 }

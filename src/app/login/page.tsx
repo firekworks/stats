@@ -1,6 +1,14 @@
+import { BarChart3, CheckCircle2, FileText, ReceiptText } from "lucide-react";
+import { FirekworksMark } from "@/components/firekworks-mark";
 import { LoginForm } from "@/components/login-form";
 import { Card } from "@/components/ui";
 import { getStatsLoginTexts } from "@/lib/app-texts";
+
+const loginBenefits = [
+  { label: "Metricas reales", icon: BarChart3 },
+  { label: "Informes mensuales", icon: FileText },
+  { label: "Facturas y proximos pasos", icon: ReceiptText }
+];
 
 export default async function LoginPage() {
   const { texts, pendingMigration } = await getStatsLoginTexts();
@@ -11,17 +19,31 @@ export default async function LoginPage() {
         <div className="login-grid">
           <section className="grid content-between gap-8">
             <div>
+              <div className="login-brand-row">
+                <FirekworksMark />
+                <span>Firekworks Stats</span>
+              </div>
               <span className="eyebrow">{texts.badge}</span>
               <h1 className="mt-3 text-[clamp(2.4rem,5vw,5rem)] font-[850] leading-none">
                 {texts.title}
               </h1>
               <p className="mt-5 max-w-xl text-lg text-[#6e6e73]">{texts.subtitle}</p>
             </div>
-            <div className="grid gap-3 text-[#6e6e73]">
-              <div className="skeleton h-4 w-3/4" />
-              <div className="skeleton h-4 w-1/2" />
-              <div className="skeleton h-4 w-2/3" />
-            </div>
+            <ul className="login-benefits">
+              {loginBenefits.map((benefit) => {
+                const Icon = benefit.icon;
+
+                return (
+                  <li key={benefit.label}>
+                    <span>
+                      <Icon size={17} />
+                    </span>
+                    {benefit.label}
+                    <CheckCircle2 size={17} className="ml-auto text-[#2f9e44]" />
+                  </li>
+                );
+              })}
+            </ul>
           </section>
 
           <section className="card card-muted">

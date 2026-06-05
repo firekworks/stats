@@ -64,6 +64,13 @@ export type Client = {
   slug: string;
   publicName: string;
   legalName: string;
+  leadId?: string | null;
+  source?: string | null;
+  taxId?: string | null;
+  billingEmail?: string | null;
+  billingAddress?: string | null;
+  phone?: string | null;
+  website?: string | null;
   industry: string;
   status: ClientStatus;
   city: string;

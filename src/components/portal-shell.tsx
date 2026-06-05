@@ -1,6 +1,7 @@
 import { Bell, BookOpenCheck } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { FirekworksMark } from "@/components/firekworks-mark";
 import { PortalNav, type PortalNavItem } from "@/components/portal-nav";
 import type { Client } from "@/lib/types";
 
@@ -45,7 +46,7 @@ export function PortalShell({
     <div className="app-frame">
       <aside className="sidebar">
         <Link href={mode === "client" ? "/client" : "/admin"} className="brand">
-          <span className="brand-mark">S</span>
+          <FirekworksMark />
           <span className="brand-copy">
             <strong>Stats</strong>
             <span>Firekworks</span>

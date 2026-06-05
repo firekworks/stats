@@ -1,4 +1,5 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import { FirekworksMark } from "@/components/firekworks-mark";
 import { ButtonLink, Card } from "@/components/ui";
 
 export default function HomePage() {
@@ -12,7 +13,10 @@ export default function HomePage() {
     <main className="public-home">
       <section className="public-home-inner">
         <div className="public-hero">
-          <span className="eyebrow">Firekworks Stats</span>
+          <div className="login-brand-row">
+            <FirekworksMark />
+            <span>Firekworks Stats</span>
+          </div>
           <h1>Firekworks Stats</h1>
           <p>
             Portal privado de resultados para clientes de Firekworks. La app se ha cargado correctamente.

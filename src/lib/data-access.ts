@@ -191,6 +191,13 @@ function mapClient(row: Row): Client {
     slug: row.slug ?? row.id,
     publicName: row.public_name ?? row.name,
     legalName: row.legal_name ?? row.billing_name ?? row.name,
+    leadId: row.lead_id ?? null,
+    source: row.source ?? null,
+    taxId: row.tax_id ?? null,
+    billingEmail: row.billing_email ?? null,
+    billingAddress: row.billing_address ?? null,
+    phone: row.phone ?? null,
+    website: row.website ?? null,
     industry: row.industry ?? row.sector ?? "",
     status:
       row.status === "Baja"

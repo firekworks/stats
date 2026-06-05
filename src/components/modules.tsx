@@ -517,6 +517,19 @@ export function ClientsModule({ data }: { data: PortalData }) {
                 value={formatNumber(metric?.leads ?? 0)}
               />
               <SmallStat label="Level" value={score?.levelName ?? "Nuevo"} />
+              <SmallStat
+                label="Origen"
+                value={
+                  client.leadId || client.source === "lead"
+                    ? "Conectado a Leads"
+                    : "Manual"
+                }
+              />
+              <SmallStat label="NIF/CIF" value={client.taxId || "Pendiente"} />
+              <SmallStat
+                label="Email facturacion"
+                value={client.billingEmail || "Pendiente"}
+              />
               <ButtonLink href={`/admin/clients/${client.id}`} variant="secondary">
                 <ExternalLink size={16} />
                 Abrir ficha
@@ -531,7 +544,7 @@ export function ClientsModule({ data }: { data: PortalData }) {
 
 function SmallStat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="small-stat">
       <span className="metric-label">{label}</span>
       <strong className="block text-[1.35rem] leading-tight">{value}</strong>
     </div>

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Stats | Firekworks",
   description: "Portal privado de resultados para clientes Firekworks",
   icons: {
-    icon: "/stats-icon.svg"
+    icon: "/brand/firekworks-mark.svg"
   }
 };
 
