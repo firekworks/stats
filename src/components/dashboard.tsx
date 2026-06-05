@@ -37,6 +37,11 @@ import type { PortalData } from "@/lib/types";
 
 export function ClientDashboard({ data }: { data: PortalData }) {
   const latest = data.metrics[0];
+
+  if (!latest) {
+    return <ClientDashboardEmpty data={data} />;
+  }
+
   const previous = data.metrics[1];
   const bestContent = data.content.find(
     (item) => item.id === latest.bestContentId
@@ -267,6 +272,95 @@ export function ClientDashboard({ data }: { data: PortalData }) {
                 <span>{formatCurrency(data.invoices[0]?.total ?? 0)}</span>
               </div>
               <StatusBadge status={data.invoices[0]?.status ?? "draft"} />
+            </div>
+          </div>
+        </Card>
+      </section>
+    </div>
+  );
+}
+
+function ClientDashboardEmpty({ data }: { data: PortalData }) {
+  return (
+    <div className="grid">
+      <section className="split">
+        <Card className="hero-result">
+          <span className="metric-label">Resultado destacado</span>
+          <strong className="metric-value">Sin datos</strong>
+          <p className="max-w-[620px] text-lg">
+            Todavia no hay metricas reales importadas o registradas para{" "}
+            {data.selectedClient.publicName}.
+          </p>
+          <footer className="metric-foot">
+            <span className="badge badge-gray">Pendiente</span>
+            <span>Conecta integraciones o registra metricas manuales.</span>
+          </footer>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Resumen del mes"
+            description="Datos pendientes"
+            action={<StatusBadge status={data.selectedClient.status} />}
+          />
+          <div className="mt-6 grid gap-4">
+            <div className="list-item">
+              <span className="metric-icon bg-[rgba(0,113,227,0.1)] text-[#0071e3]">
+                <CalendarClock size={20} />
+              </span>
+              <div className="list-item-main">
+                <strong>Portal listo para recibir datos reales.</strong>
+                <span>No se muestran leads ni metricas ficticias al cliente.</span>
+              </div>
+            </div>
+            <div className="list-item">
+              <span className="metric-icon bg-[rgba(47,158,68,0.1)] text-[#2f9e44]">
+                <CheckCircle2 size={20} />
+              </span>
+              <div className="list-item-main">
+                <strong>Estado del plan: {data.selectedClient.planStatus}</strong>
+                <span>{data.selectedClient.planName}</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <section className="grid grid-4">
+        <MetricCard icon={Eye} label="Alcance" value="Sin datos" tone="blue" />
+        <MetricCard icon={Megaphone} label="Impresiones" value="Sin datos" tone="gray" />
+        <MetricCard icon={MessageCircle} label="Leads y mensajes" value="Sin datos" tone="green" />
+        <MetricCard icon={TrendingUp} label="ROI" value="Sin datos" tone="orange" />
+      </section>
+
+      <section className="grid grid-2">
+        <Card>
+          <CardHeader title="Proximas acciones" description="Plan operativo" />
+          <div className="mt-5 list">
+            {data.tasks
+              .filter((task) => task.visibleToClient)
+              .map((task) => (
+                <div className="list-item" key={task.id}>
+                  <div className="list-item-main">
+                    <strong>{task.title}</strong>
+                    <span>Fecha objetivo: {task.dueDate}</span>
+                  </div>
+                  <StatusBadge status={task.status} />
+                </div>
+              ))}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Informes" description="PDF mensual" />
+          <div className="mt-5 list">
+            <div className="list-item">
+              <FileBarChart size={22} />
+              <div className="list-item-main">
+                <strong>Informe pendiente</strong>
+                <span>Se activara cuando existan metricas del periodo.</span>
+              </div>
+              <StatusBadge status="pending" />
             </div>
           </div>
         </Card>

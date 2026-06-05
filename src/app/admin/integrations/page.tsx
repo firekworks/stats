@@ -1,15 +1,24 @@
 import { IntegrationsModule } from "@/components/modules";
 import { PageHeader } from "@/components/ui";
+import { getAdminPortalData } from "@/lib/data-access";
+import { getIntegrationOverview } from "@/lib/integrations/overview";
 
-export default function AdminIntegrationsPage() {
+export default async function AdminIntegrationsPage() {
+  const data = await getAdminPortalData();
+  const overview = await getIntegrationOverview(data.clients.map((client) => client.id));
+
   return (
     <>
       <PageHeader
         eyebrow="Integraciones"
         title="APIs externas"
-        description="Preparado para Meta Ads, Instagram Graph, Facebook Pages, WhatsApp Cloud y Google Business Profile."
+        description="Conecta cuentas externas, selecciona activos y sincroniza datos reales sin exponer tokens."
       />
-      <IntegrationsModule />
+      <IntegrationsModule
+        assets={overview.assets}
+        clients={data.clients}
+        integrations={overview.integrations}
+      />
     </>
   );
 }

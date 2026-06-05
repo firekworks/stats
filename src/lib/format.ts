@@ -65,6 +65,11 @@ export function statusLabel(status: string) {
     overdue: "Vencida",
     cancelled: "Cancelada",
     generated: "Generado",
+    connected: "Conectada",
+    revoked: "Revocada",
+    pending: "Pendiente",
+    error: "Error",
+    disconnected: "Desconectada",
     open: "Abierta",
     in_progress: "En curso",
     done: "Hecha"

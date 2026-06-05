@@ -1,14 +1,18 @@
 import {
   AlertTriangle,
+  Cable,
   CheckCircle2,
   ExternalLink,
   FileText,
   LockKeyhole,
   Plus,
+  RefreshCw,
   ShieldCheck,
   Trophy,
+  Unplug,
   UploadCloud
 } from "lucide-react";
+import { IntegrationActionButton } from "@/components/integration-action-button";
 import { ButtonLink, Card, CardHeader, StatusBadge } from "@/components/ui";
 import { PdfDownloadButton } from "@/components/pdf-download-button";
 import {
@@ -16,8 +20,13 @@ import {
   formatDecimal,
   formatMonth,
   formatNumber,
-  formatPercent
+  formatPercent,
+  statusLabel
 } from "@/lib/format";
+import type {
+  ConnectedAssetOverviewRow,
+  IntegrationOverviewRow
+} from "@/lib/integrations/overview";
 import type {
   Campaign,
   Client,
@@ -413,77 +422,295 @@ export function NextStepsModule({ tasks }: { tasks: Task[] }) {
   );
 }
 
-export function IntegrationsModule() {
-  const integrations = [
-    {
-      name: "Meta Ads",
-      status: "Preparado",
-      description: "Campañas, gasto, CTR, CPC, CPM y conversiones."
-    },
-    {
-      name: "Instagram Graph API",
-      status: "Preparado",
-      description: "Reels, posts, alcance, interacciones y contenido."
-    },
-    {
-      name: "Facebook Pages",
-      status: "Preparado",
-      description: "Contenido, mensajes, eventos y actividad de pagina."
-    },
-    {
-      name: "WhatsApp Cloud API",
-      status: "Preparado",
-      description: "Mensajes, conversaciones y seguimiento comercial."
-    },
-    {
-      name: "Google Business Profile",
-      status: "Preparado",
-      description: "Llamadas, clics, rutas, publicaciones y reseñas."
-    }
-  ];
+export function IntegrationsModule({
+  clients,
+  integrations,
+  assets
+}: {
+  clients: Client[];
+  integrations: IntegrationOverviewRow[];
+  assets: ConnectedAssetOverviewRow[];
+}) {
+  return (
+    <div className="grid gap-6">
+      <section className="grid grid-2">
+        <Card>
+          <CardHeader
+            title="Conectores"
+            description="APIs externas"
+            action={<Cable size={22} />}
+          />
+          <div className="mt-5 list">
+            <ConnectorStatus
+              title="Meta Ads + Instagram + Facebook"
+              text="OAuth, activos, insights de Ads y contenido social."
+              ready
+            />
+            <ConnectorStatus
+              title="Google Business Profile"
+              text="OAuth preparado; sincronizacion pendiente de mapear locations reales."
+            />
+            <ConnectorStatus
+              title="WhatsApp Cloud API"
+              text="Webhooks y activos preparados; metricas solo con eventos reales."
+            />
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Seguridad" description="Tokens y API keys" />
+          <div className="mt-5 list">
+            <SecurityItem
+              icon={<ShieldCheck size={21} />}
+              title="Tokens cifrados"
+              text="Los access tokens se cifran con AES-256-GCM usando ENCRYPTION_KEY."
+            />
+            <SecurityItem
+              icon={<UploadCloud size={21} />}
+              title="Backend seguro"
+              text="Las llamadas a APIs externas pasan por Route Handlers o cron server-side."
+            />
+            <SecurityItem
+              icon={<AlertTriangle size={21} />}
+              title="Sin metricas inventadas"
+              text="Los dashboards solo agregan datos importados o datos manuales existentes."
+            />
+          </div>
+        </Card>
+      </section>
+
+      <section className="grid gap-5">
+        {clients.map((client) => (
+          <IntegrationClientCard
+            assets={assets.filter((asset) => asset.clientId === client.id)}
+            client={client}
+            integrations={integrations.filter(
+              (integration) => integration.clientId === client.id
+            )}
+            key={client.id}
+          />
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function IntegrationClientCard({
+  client,
+  integrations,
+  assets
+}: {
+  client: Client;
+  integrations: IntegrationOverviewRow[];
+  assets: ConnectedAssetOverviewRow[];
+}) {
+  const meta = integrations.find((integration) => integration.provider === "meta");
+  const google = integrations.find(
+    (integration) => integration.provider === "google_business"
+  );
+  const whatsapp = integrations.find(
+    (integration) => integration.provider === "whatsapp"
+  );
 
   return (
-    <section className="grid grid-2">
-      <Card>
-        <CardHeader
-          title="Conexiones futuras"
-          description="Backend seguro"
-          action={<LockKeyhole size={22} />}
+    <Card>
+      <CardHeader
+        title={client.publicName}
+        description={`${client.industry} · ${client.city}`}
+        action={<StatusBadge status={client.status} />}
+      />
+      <div className="mt-5 grid gap-4">
+        <IntegrationProviderRow
+          clientId={client.id}
+          integration={meta}
+          assets={assets.filter((asset) => asset.provider === "meta")}
+          provider="meta"
+          title="Meta"
+          text="Ads, Instagram y Facebook Pages"
         />
-        <div className="mt-5 list">
-          {integrations.map((integration) => (
-            <div className="list-item" key={integration.name}>
-              <div className="list-item-main">
-                <strong>{integration.name}</strong>
-                <span>{integration.description}</span>
-              </div>
-              <span className="badge badge-blue">{integration.status}</span>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <Card>
-        <CardHeader title="Seguridad" description="Tokens y API keys" />
-        <div className="mt-5 list">
-          <SecurityItem
-            icon={<ShieldCheck size={21} />}
-            title="Tokens fuera del frontend"
-            text="Las claves externas se guardan cifradas o en Supabase Vault y se consumen desde Edge Functions."
-          />
-          <SecurityItem
-            icon={<UploadCloud size={21} />}
-            title="Sin service_role en cliente"
-            text="El service role queda limitado a rutas servidor y funciones internas."
-          />
-          <SecurityItem
-            icon={<AlertTriangle size={21} />}
-            title="Facturacion modular"
-            text="La emision fiscal definitiva debe validarse con asesoria antes de produccion."
-          />
-        </div>
-      </Card>
-    </section>
+        <IntegrationProviderRow
+          clientId={client.id}
+          integration={google}
+          assets={assets.filter((asset) => asset.provider === "google_business")}
+          provider="google_business"
+          title="Google Business"
+          text="Locations, llamadas, clics y reseñas"
+        />
+        <IntegrationProviderRow
+          clientId={client.id}
+          integration={whatsapp}
+          assets={assets.filter((asset) => asset.provider === "whatsapp")}
+          provider="whatsapp"
+          title="WhatsApp"
+          text="Mensajes y conversaciones por webhook"
+        />
+      </div>
+    </Card>
   );
+}
+
+function IntegrationProviderRow({
+  clientId,
+  integration,
+  assets,
+  provider,
+  title,
+  text
+}: {
+  clientId: string;
+  integration?: IntegrationOverviewRow;
+  assets: ConnectedAssetOverviewRow[];
+  provider: "meta" | "google_business" | "whatsapp";
+  title: string;
+  text: string;
+}) {
+  const connected = integration?.status === "connected";
+
+  return (
+    <div className="list-item">
+      <span
+        className={`metric-icon ${
+          connected
+            ? "bg-[rgba(47,158,68,0.1)] text-[#2f9e44]"
+            : "bg-[rgba(110,110,115,0.1)] text-[#6e6e73]"
+        }`}
+      >
+        {connected ? <CheckCircle2 size={20} /> : <LockKeyhole size={20} />}
+      </span>
+      <div className="list-item-main">
+        <strong>{title}</strong>
+        <span>{providerStatusText(integration, text)}</span>
+        {assets.length ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {assets.slice(0, 5).map((asset) => (
+              <span
+                className={asset.isSelected ? "badge badge-blue" : "badge badge-gray"}
+                key={asset.id}
+              >
+                {assetLabel(asset)}
+              </span>
+            ))}
+            {assets.length > 5 ? (
+              <span className="badge badge-gray">+{assets.length - 5}</span>
+            ) : null}
+          </div>
+        ) : null}
+        {integration?.errorMessage ? (
+          <span className="mt-2 block text-sm text-[#d92d20]">
+            {integration.errorMessage}
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        {provider === "meta" ? (
+          <>
+            <ButtonLink href={`/api/integrations/meta/start?clientId=${clientId}`}>
+              <ExternalLink size={16} />
+              {connected ? "Reconectar" : "Conectar"}
+            </ButtonLink>
+            {connected ? (
+              <>
+                <IntegrationActionButton
+                  endpoint="/api/integrations/meta/assets"
+                  body={{ clientId, refresh: true }}
+                  label="Activos"
+                />
+                <IntegrationActionButton
+                  endpoint="/api/integrations/meta/sync"
+                  body={{ clientId, mode: "all" }}
+                  label="Sync"
+                />
+                <IntegrationActionButton
+                  endpoint="/api/integrations/meta/disconnect"
+                  body={{ clientId }}
+                  label="Desconectar"
+                  variant="ghost"
+                />
+              </>
+            ) : null}
+          </>
+        ) : null}
+        {provider === "google_business" ? (
+          <ButtonLink href={`/api/integrations/google/start?clientId=${clientId}`} variant="secondary">
+            <ExternalLink size={16} />
+            {connected ? "Reconectar" : "Conectar"}
+          </ButtonLink>
+        ) : null}
+        {provider === "whatsapp" ? (
+          connected ? (
+            <IntegrationActionButton
+              endpoint="/api/integrations/whatsapp/disconnect"
+              body={{ clientId }}
+              label="Desconectar"
+              variant="ghost"
+            />
+          ) : (
+            <span className="badge badge-gray">Preparado</span>
+          )
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ConnectorStatus({
+  title,
+  text,
+  ready = false
+}: {
+  title: string;
+  text: string;
+  ready?: boolean;
+}) {
+  return (
+    <div className="list-item">
+      <span
+        className={`metric-icon ${
+          ready
+            ? "bg-[rgba(0,113,227,0.1)] text-[#0071e3]"
+            : "bg-[rgba(110,110,115,0.1)] text-[#6e6e73]"
+        }`}
+      >
+        {ready ? <RefreshCw size={20} /> : <Unplug size={20} />}
+      </span>
+      <div className="list-item-main">
+        <strong>{title}</strong>
+        <span>{text}</span>
+      </div>
+      <span className={ready ? "badge badge-blue" : "badge badge-gray"}>
+        {ready ? "Operativo" : "Placeholder"}
+      </span>
+    </div>
+  );
+}
+
+function providerStatusText(
+  integration: IntegrationOverviewRow | undefined,
+  fallback: string
+) {
+  if (!integration) {
+    return fallback;
+  }
+
+  const account = integration.externalAccountName ?? integration.providerUserName;
+  const lastSync = integration.lastSyncAt
+    ? ` · sync ${formatDateShort(integration.lastSyncAt)}`
+    : "";
+
+  return `${statusLabel(integration.status)}${account ? ` · ${account}` : ""}${lastSync}`;
+}
+
+function assetLabel(asset: ConnectedAssetOverviewRow) {
+  const selected = asset.isSelected ? "seleccionado" : asset.status;
+  return `${asset.name} · ${asset.assetType.replace(/_/g, " ")} · ${selected}`;
+}
+
+function formatDateShort(value: string) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 export function ClientsModule({ data }: { data: PortalData }) {

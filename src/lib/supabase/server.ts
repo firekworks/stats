@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { getSupabaseServiceEnv } from "@/lib/server/env";
 
 export async function getSupabaseServerClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, anonKey } = getSupabaseServiceEnv();
+  const key = anonKey;
 
   if (!url || !key || key.startsWith("sb_secret_") || key.includes("service_role")) {
     return null;
@@ -37,8 +38,7 @@ export function getSupabaseAdminClient() {
     throw new Error("Supabase admin client cannot be used in the browser");
   }
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const { url, serviceRoleKey } = getSupabaseServiceEnv();
 
   if (!url || !serviceRoleKey) {
     return null;

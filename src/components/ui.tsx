@@ -142,9 +142,15 @@ export function TrendBadge({ value }: { value: number }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const tone =
-    status === "active" || status === "paid" || status === "generated"
+    status === "active" ||
+    status === "paid" ||
+    status === "generated" ||
+    status === "connected"
       ? "badge-green"
-      : status === "overdue" || status === "cancelled"
+      : status === "overdue" ||
+          status === "cancelled" ||
+          status === "revoked" ||
+          status === "error"
         ? "badge-red"
         : status === "learning" ||
             status === "pending_approval" ||
