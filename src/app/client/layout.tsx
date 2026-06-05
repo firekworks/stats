@@ -7,7 +7,7 @@ export default async function ClientLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await getCurrentProfile("client");
+  const profile = await getCurrentProfile();
   const data = await getClientPortalData(profile.clientId ?? undefined);
 
   return (

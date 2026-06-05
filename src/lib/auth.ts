@@ -9,26 +9,11 @@ export type SessionProfile = {
   fullName: string;
 };
 
-const demoProfiles: Record<"admin" | "client", SessionProfile> = {
-  admin: {
-    id: "demo-admin",
-    role: "admin",
-    clientId: null,
-    fullName: "Firekworks Admin"
-  },
-  client: {
-    id: "demo-client",
-    role: "client",
-    clientId: "11111111-1111-4111-8111-111111111111",
-    fullName: "Cliente Demo"
-  }
-};
-
-export async function getCurrentProfile(preferredRole: Role = "client") {
+export async function getCurrentProfile() {
   const supabase = await getSupabaseServerClient();
 
   if (!supabase) {
-    return preferredRole === "client" ? demoProfiles.client : demoProfiles.admin;
+    redirect("/login");
   }
 
   const {
@@ -75,7 +60,7 @@ export async function getCurrentProfile(preferredRole: Role = "client") {
 }
 
 export async function requireRole(role: Role) {
-  const profile = await getCurrentProfile(role);
+  const profile = await getCurrentProfile();
 
   if (profile.role !== role) {
     redirect(["admin", "sales", "viewer"].includes(profile.role) ? "/admin" : "/client");
@@ -85,7 +70,7 @@ export async function requireRole(role: Role) {
 }
 
 export async function requireInternalRole() {
-  const profile = await getCurrentProfile("admin");
+  const profile = await getCurrentProfile();
 
   if (!["admin", "sales", "viewer"].includes(profile.role)) {
     redirect("/client");

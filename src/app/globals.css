@@ -539,6 +539,65 @@ button {
   grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
 }
 
+.public-home {
+  align-items: center;
+  display: grid;
+  min-height: 100vh;
+  padding: clamp(22px, 5vw, 64px);
+}
+
+.public-home-inner {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+  margin: 0 auto;
+  max-width: 1120px;
+  width: 100%;
+}
+
+.public-hero {
+  align-content: center;
+  display: grid;
+  gap: 20px;
+  min-height: 460px;
+}
+
+.public-hero h1 {
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 850;
+  line-height: 0.92;
+  margin: 0;
+}
+
+.public-hero p {
+  color: var(--secondary);
+  font-size: 1.14rem;
+  margin: 0;
+  max-width: 650px;
+}
+
+.public-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.public-status-card {
+  align-self: center;
+  display: grid;
+  gap: 10px;
+}
+
+.public-status-card strong {
+  display: block;
+  font-size: 1.35rem;
+}
+
+.public-status-card p {
+  color: var(--secondary);
+  margin: 0;
+}
+
 .form {
   display: grid;
   gap: 14px;
@@ -637,7 +696,8 @@ button {
   }
 
   .split,
-  .login-grid {
+  .login-grid,
+  .public-home-inner {
     grid-template-columns: 1fr;
   }
 

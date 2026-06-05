@@ -4,7 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { getClientPortalData } from "@/lib/data-access";
 
 export default async function ClientContentPage() {
-  const profile = await getCurrentProfile("client");
+  const profile = await getCurrentProfile();
   const data = await getClientPortalData(profile.clientId ?? undefined);
 
   return (
