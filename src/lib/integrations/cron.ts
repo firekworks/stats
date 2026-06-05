@@ -11,7 +11,7 @@ export function requireCronRequest(request: Request) {
   if (!configuredSecret) {
     return NextResponse.json(
       { error: "CRON_SECRET no configurado" },
-      { status: 503 }
+      { status: 401 }
     );
   }
 

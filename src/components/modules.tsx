@@ -12,6 +12,7 @@ import {
   Unplug,
   UploadCloud
 } from "lucide-react";
+import { IntegrationAssetSelector } from "@/components/integration-asset-selector";
 import { IntegrationActionButton } from "@/components/integration-action-button";
 import { ButtonLink, Card, CardHeader, StatusBadge } from "@/components/ui";
 import { PdfDownloadButton } from "@/components/pdf-download-button";
@@ -47,6 +48,22 @@ export function CampaignsModule({
   campaigns: Campaign[];
   admin?: boolean;
 }) {
+  if (!campaigns.length) {
+    return (
+      <Card>
+        <CardHeader
+          title="Campañas"
+          description={admin ? "Gestion interna" : "Actividad actual"}
+          action={admin ? <span className="badge badge-gray">Sin datos</span> : null}
+        />
+        <EmptyState
+          title="No hay campañas conectadas"
+          text="Conecta Meta o crea una campaña planificada para empezar a ver rendimiento real."
+        />
+      </Card>
+    );
+  }
+
   return (
     <Card className="table-card">
       <div className="p-[22px]">
@@ -77,6 +94,8 @@ export function CampaignsModule({
               <th>CPC</th>
               <th>CPM</th>
               <th>Leads</th>
+              <th>Mensajes</th>
+              <th>Conversiones</th>
               <th>CPL</th>
               <th>ROAS</th>
             </tr>
@@ -101,6 +120,8 @@ export function CampaignsModule({
                 <td>{formatCurrency(campaign.cpc)}</td>
                 <td>{formatCurrency(campaign.cpm)}</td>
                 <td>{formatNumber(campaign.leads)}</td>
+                <td>{formatNumber(campaign.messages ?? 0)}</td>
+                <td>{formatNumber(campaign.conversions ?? 0)}</td>
                 <td>{formatCurrency(campaign.costPerLead)}</td>
                 <td>
                   {campaign.roas ? `${formatDecimal(campaign.roas, 2)}x` : "N/A"}
@@ -121,6 +142,22 @@ export function ContentModule({
   content: ContentItem[];
   admin?: boolean;
 }) {
+  if (!content.length) {
+    return (
+      <Card>
+        <CardHeader
+          title="Contenido"
+          description={admin ? "Biblioteca interna" : "Entregas"}
+          action={<span className="badge badge-gray">Sin datos</span>}
+        />
+        <EmptyState
+          title="No hay contenido sincronizado"
+          text="Cuando se publiquen reels, posts o carruseles conectados apareceran aqui."
+        />
+      </Card>
+    );
+  }
+
   return (
     <section className="grid grid-3">
       {content.map((item) => (
@@ -136,7 +173,7 @@ export function ContentModule({
             />
             <div className="grid grid-2">
               <SmallStat label="Alcance" value={formatNumber(item.reach)} />
-              <SmallStat label="Vistas" value={formatNumber(item.views)} />
+              <SmallStat label="Vistas/plays" value={formatNumber(item.views || item.plays || 0)} />
               <SmallStat label="Engagement" value={formatPercent(item.engagementRate)} />
               <SmallStat label="Guardados" value={formatNumber(item.saves)} />
             </div>
@@ -156,6 +193,18 @@ export function ContentModule({
 }
 
 export function MetricsModule({ metrics }: { metrics: MonthlyMetric[] }) {
+  if (!metrics.length) {
+    return (
+      <Card>
+        <CardHeader title="Metricas mensuales" description="Historico" />
+        <EmptyState
+          title="Sin datos sincronizados todavía"
+          text="La evolución mensual se completara cuando haya metricas reales de campañas, contenido o carga manual."
+        />
+      </Card>
+    );
+  }
+
   return (
     <Card className="table-card">
       <div className="p-[22px]">
@@ -227,16 +276,23 @@ export function ReportsModule({
         }
       />
       <div className="mt-5 list">
-        {reports.map((report) => (
-          <div className="list-item" key={report.id}>
-            <FileText size={22} />
-            <div className="list-item-main">
-              <strong>{report.title}</strong>
-              <span>{formatMonth(report.month, report.year)}</span>
+        {reports.length ? (
+          reports.map((report) => (
+            <div className="list-item" key={report.id}>
+              <FileText size={22} />
+              <div className="list-item-main">
+                <strong>{report.title}</strong>
+                <span>{formatMonth(report.month, report.year)}</span>
+              </div>
+              <StatusBadge status={report.status} />
             </div>
-            <StatusBadge status={report.status} />
-          </div>
-        ))}
+          ))
+        ) : (
+          <EmptyState
+            title="Sin informes generados"
+            text="Genera el primer informe cuando haya metricas reales del periodo."
+          />
+        )}
       </div>
     </Card>
   );
@@ -249,6 +305,22 @@ export function InvoicesModule({
   invoices: Invoice[];
   admin?: boolean;
 }) {
+  if (!invoices.length) {
+    return (
+      <Card>
+        <CardHeader
+          title="Facturas"
+          description={admin ? "Modulo interno" : "Facturacion"}
+          action={admin ? <span className="badge badge-gray">Sin datos</span> : null}
+        />
+        <EmptyState
+          title="Sin facturas"
+          text="Las facturas apareceran aqui cuando se creen desde el modulo interno."
+        />
+      </Card>
+    );
+  }
+
   return (
     <Card className="table-card">
       <div className="p-[22px]">
@@ -479,16 +551,25 @@ export function IntegrationsModule({
       </section>
 
       <section className="grid gap-5">
-        {clients.map((client) => (
-          <IntegrationClientCard
-            assets={assets.filter((asset) => asset.clientId === client.id)}
-            client={client}
-            integrations={integrations.filter(
-              (integration) => integration.clientId === client.id
-            )}
-            key={client.id}
-          />
-        ))}
+        {clients.length ? (
+          clients.map((client) => (
+            <IntegrationClientCard
+              assets={assets.filter((asset) => asset.clientId === client.id)}
+              client={client}
+              integrations={integrations.filter(
+                (integration) => integration.clientId === client.id
+              )}
+              key={client.id}
+            />
+          ))
+        ) : (
+          <Card>
+            <EmptyState
+              title="No hay clientes reales"
+              text="Crea un cliente en Stats antes de conectar activos de Meta."
+            />
+          </Card>
+        )}
       </section>
     </div>
   );
@@ -598,6 +679,9 @@ function IntegrationProviderRow({
           <span className="mt-2 block text-sm text-[#d92d20]">
             {integration.errorMessage}
           </span>
+        ) : null}
+        {provider === "meta" && connected ? (
+          <IntegrationAssetSelector assets={assets} clientId={clientId} />
         ) : null}
       </div>
       <div className="flex flex-wrap justify-end gap-2">
@@ -768,6 +852,15 @@ function SmallStat({ label, value }: { label: string; value: string }) {
     <div className="small-stat">
       <span className="metric-label">{label}</span>
       <strong className="block text-[1.35rem] leading-tight">{value}</strong>
+    </div>
+  );
+}
+
+function EmptyState({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="notice-card">
+      <strong>{title}</strong>
+      <span className="mt-2 block text-sm text-[#6e6e73]">{text}</span>
     </div>
   );
 }

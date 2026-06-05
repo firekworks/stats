@@ -1,11 +1,4 @@
 import { getBillingSettings } from "@/lib/billing-settings";
-import {
-  campaigns as demoCampaigns,
-  clients as demoClients,
-  contentItems as demoContent,
-  invoices as demoInvoices,
-  monthlyMetrics as demoMetrics
-} from "@/lib/demo-data";
 import type { InvoicePdfInput, MonthlyReportPdfInput } from "@/lib/pdf";
 import type { Campaign, Client, ContentItem, Invoice, MonthlyMetric } from "@/lib/types";
 import type { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -26,34 +19,7 @@ export async function getMonthlyReportPdfInput(
     .eq("id", clientId)
     .maybeSingle<Row>();
 
-  if (!clientRow) {
-    const demoClient = demoClients.find((client) => client.id === clientId);
-
-    if (!demoClient) {
-      return null;
-    }
-
-    const metric =
-      demoMetrics
-        .filter(
-          (item) =>
-            item.clientId === clientId &&
-            (!month || item.month === month) &&
-            (!year || item.year === year)
-        )
-        .sort((a, b) => b.year - a.year || b.month - a.month)[0] ??
-      demoMetrics.find((item) => item.clientId === clientId) ??
-      demoMetrics[0];
-
-    return {
-      billing: settings,
-      client: demoClient,
-      metric,
-      campaigns: demoCampaigns.filter((campaign) => campaign.clientId === clientId),
-      content: demoContent.filter((item) => item.clientId === clientId),
-      isDemoData: true
-    };
-  }
+  if (!clientRow) return null;
 
   let metricQuery = admin
     .from("monthly_metrics")
@@ -119,23 +85,7 @@ export async function getInvoicePdfInput(
     .eq("id", invoiceId)
     .maybeSingle<Row>();
 
-  if (!invoiceRow) {
-    const demoInvoice = demoInvoices.find((invoice) => invoice.id === invoiceId);
-    const demoClient = demoInvoice
-      ? demoClients.find((client) => client.id === demoInvoice.clientId)
-      : null;
-
-    if (!demoInvoice || !demoClient) {
-      return null;
-    }
-
-    return {
-      billing: settings,
-      client: demoClient,
-      invoice: demoInvoice,
-      isDemoData: true
-    };
-  }
+  if (!invoiceRow) return null;
 
   const clientId = String(invoiceRow.client_id ?? "");
   const { data: clientRow } = await admin
@@ -239,6 +189,9 @@ function mapCampaign(row: Row): Campaign {
     startDate: String(row.start_date ?? ""),
     endDate: stringOrNull(row.end_date),
     status: String(row.status ?? "draft") as Campaign["status"],
+    impressions: number(row.impressions),
+    reach: number(row.reach),
+    clicks: number(row.clicks),
     ctr: number(row.ctr),
     cpc: number(row.cpc),
     cpm: number(row.cpm),

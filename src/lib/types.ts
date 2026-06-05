@@ -25,7 +25,8 @@ export type CampaignStatus =
   | "active"
   | "learning"
   | "paused"
-  | "completed";
+  | "completed"
+  | "cancelled";
 
 export type ContentType =
   | "Reel"
@@ -46,7 +47,8 @@ export type ContentStatus =
   | "editing"
   | "pending_approval"
   | "scheduled"
-  | "published";
+  | "published"
+  | "archived";
 
 export type ContentPerformance = "low" | "ok" | "high" | "viral";
 
@@ -124,13 +126,28 @@ export type Campaign = {
   startDate: string;
   endDate: string | null;
   status: CampaignStatus;
+  impressions?: number;
+  reach?: number;
+  clicks?: number;
   ctr: number;
   cpc: number;
   cpm: number;
   leads: number;
+  messages?: number;
+  conversions?: number;
   costPerLead: number;
   roas: number | null;
   visibleSummary: string;
+  source?: string | null;
+  syncStatus?: string | null;
+  externalCampaignId?: string | null;
+  externalAdAccountId?: string | null;
+  plannedBudget?: number;
+  realSpend?: number;
+  servicePrice?: number;
+  internalPrice?: number;
+  lifecycleStatus?: string | null;
+  lastSyncedAt?: string | null;
 };
 
 export type ContentItem = {
@@ -145,14 +162,25 @@ export type ContentItem = {
   storagePath: string | null;
   views: number;
   reach: number;
+  impressions?: number;
+  plays?: number;
   likes: number;
   comments: number;
   shares: number;
   saves: number;
+  clicks?: number;
   engagementRate: number;
   performance: ContentPerformance;
   reusable: boolean;
   learning: string;
+  source?: string | null;
+  syncStatus?: string | null;
+  externalMediaId?: string | null;
+  externalAccountId?: string | null;
+  servicePrice?: number;
+  internalPrice?: number;
+  lifecycleStatus?: string | null;
+  lastSyncedAt?: string | null;
 };
 
 export type Report = {
@@ -236,6 +264,53 @@ export type Task = {
   visibleToClient: boolean;
 };
 
+export type IntegrationStatus = {
+  id: string;
+  clientId: string;
+  provider: string;
+  status: string;
+  externalAccountName: string | null;
+  providerUserName: string | null;
+  lastSyncAt: string | null;
+  errorMessage: string | null;
+};
+
+export type ConnectedAsset = {
+  id: string;
+  clientId: string;
+  provider: string;
+  assetType: string;
+  externalId: string;
+  name: string;
+  status: string;
+  isSelected: boolean;
+  lastSyncedAt: string | null;
+};
+
+export type IntegrationSyncLog = {
+  id: string;
+  clientId: string;
+  provider: string;
+  status: "started" | "success" | "error";
+  recordsInserted: number;
+  recordsUpdated: number;
+  startedAt: string;
+  finishedAt: string | null;
+  errorMessage: string | null;
+};
+
+export type LeadEvent = {
+  id: string;
+  clientId: string;
+  provider: string;
+  channel: string;
+  campaignId: string | null;
+  contentItemId: string | null;
+  contactName: string | null;
+  occurredAt: string;
+  createdAt: string;
+};
+
 export type PortalData = {
   clients: Client[];
   selectedClient: Client;
@@ -248,4 +323,8 @@ export type PortalData = {
   scores: ClientScore[];
   alerts: Alert[];
   tasks: Task[];
+  integrations: IntegrationStatus[];
+  connectedAssets: ConnectedAsset[];
+  syncLogs: IntegrationSyncLog[];
+  leadEvents: LeadEvent[];
 };

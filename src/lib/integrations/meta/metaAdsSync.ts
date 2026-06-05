@@ -135,18 +135,42 @@ async function syncAdAccount({
         "campaign_id,date_start,date_stop,impressions,reach,clicks,spend,ctr,cpc,cpm,actions,inline_link_clicks,frequency",
       limit: 100
     });
+    const campaignTotals = {
+      spend: 0,
+      leads: 0,
+      messages: 0,
+      conversions: 0
+    };
 
     for (const insight of insights) {
+      const actions = asActionMap(insight.actions);
+      campaignTotals.spend += asNumber(insight.spend);
+      campaignTotals.leads += extractLeads(actions);
+      campaignTotals.messages += extractMessages(actions);
+      campaignTotals.conversions += extractConversions(actions);
+
       const metric = await upsertCampaignMetric({
         db,
         clientId,
         campaignId: localCampaign.id,
-        insight
+        insight,
+        actions
       });
 
       counts[metric.created ? "inserted" : "updated"] += 1;
       affectedMonths.add(monthKey(metric.date));
     }
+
+    await db
+      .from("campaigns")
+      .update({
+        spend: Number(campaignTotals.spend.toFixed(2)),
+        real_spend: Number(campaignTotals.spend.toFixed(2)),
+        lifecycle_status: campaignTotals.spend > 0 ? "active" : "planned",
+        last_synced_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", localCampaign.id);
   }
 
   for (const key of affectedMonths) {
@@ -178,7 +202,9 @@ async function upsertCampaign({
     connected_asset_id: asString(asset.id) || null,
     provider: META_PROVIDER,
     external_id: externalId,
+    external_campaign_id: externalId,
     external_account_id: asString(asset.external_id),
+    external_ad_account_id: asString(asset.external_id),
     name: asString(campaign.name) || `Meta campaign ${externalId}`,
     platform: "Meta Ads",
     objective: mapMetaObjective(asString(campaign.objective)),
@@ -186,8 +212,11 @@ async function upsertCampaign({
     start_date: asDateString(campaign.start_time),
     end_date: asString(campaign.stop_time) ? asDateString(campaign.stop_time) : null,
     budget: metaMoney(campaign.lifetime_budget) || metaMoney(campaign.daily_budget),
+    planned_budget:
+      metaMoney(campaign.lifetime_budget) || metaMoney(campaign.daily_budget),
     source: "meta",
     sync_status: "synced",
+    lifecycle_status: mapLifecycleStatus(asString(campaign.status)),
     raw_payload: campaign,
     last_synced_at: now,
     updated_at: now
@@ -210,16 +239,20 @@ async function upsertCampaignMetric({
   db,
   clientId,
   campaignId,
-  insight
+  insight,
+  actions
 }: {
   db: SupabaseClient;
   clientId: string;
   campaignId: string;
   insight: DbRow;
+  actions: Record<string, number>;
 }) {
   const externalId = asString(insight.campaign_id);
   const date = asDateString(insight.date_stop ?? insight.date_start);
-  const actions = asActionMap(insight.actions);
+  const leads = extractLeads(actions);
+  const messages = extractMessages(actions);
+  const conversions = extractConversions(actions);
   const payload = {
     campaign_id: campaignId,
     client_id: clientId,
@@ -233,13 +266,14 @@ async function upsertCampaignMetric({
     clicks: Math.round(asNumber(insight.clicks)),
     link_clicks: Math.round(asNumber(insight.inline_link_clicks)),
     inline_link_clicks: Math.round(asNumber(insight.inline_link_clicks)),
-    leads: Math.round(asNumber(actions.lead)),
-    messages: Math.round(asNumber(actions.onsite_conversion_messaging_conversation_started_7d)),
+    leads: Math.round(leads),
+    messages: Math.round(messages),
+    conversions: Math.round(conversions),
     spend: Number(asNumber(insight.spend).toFixed(2)),
     ctr: asNumber(insight.ctr),
     cpc: asNumber(insight.cpc),
     cpm: asNumber(insight.cpm),
-    cost_per_lead: costPerLead(insight.spend, actions.lead),
+    cost_per_lead: costPerLead(insight.spend, leads),
     frequency: asNumber(insight.frequency) || null,
     actions,
     source: "meta",
@@ -320,6 +354,13 @@ function mapMetaCampaignStatus(status: string) {
   return "completed";
 }
 
+function mapLifecycleStatus(status: string) {
+  if (status === "ACTIVE") return "active";
+  if (status === "PAUSED") return "approved";
+  if (status === "ARCHIVED" || status === "DELETED") return "reported";
+  return "completed";
+}
+
 function mapMetaObjective(objective: string) {
   if (objective.includes("MESSAGES")) return "Mensajes";
   if (objective.includes("LEAD")) return "Leads";
@@ -328,6 +369,39 @@ function mapMetaObjective(objective: string) {
     return "Reconocimiento";
   }
   return "Leads";
+}
+
+function extractLeads(actions: Record<string, number>) {
+  return sumActions(actions, [
+    "lead",
+    "onsite_conversion.lead_grouped",
+    "offsite_conversion.fb_pixel_lead",
+    "onsite_web_lead",
+    "onsite_conversion.lead"
+  ]);
+}
+
+function extractMessages(actions: Record<string, number>) {
+  return sumActions(actions, [
+    "onsite_conversion.messaging_conversation_started_7d",
+    "onsite_conversion_messaging_conversation_started_7d",
+    "onsite_conversion.messaging_first_reply",
+    "contact_total"
+  ]);
+}
+
+function extractConversions(actions: Record<string, number>) {
+  return sumActions(actions, [
+    "purchase",
+    "lead",
+    "complete_registration",
+    "schedule_total",
+    "onsite_conversion.booking_request"
+  ]);
+}
+
+function sumActions(actions: Record<string, number>, keys: string[]) {
+  return keys.reduce((total, key) => total + (actions[key] ?? 0), 0);
 }
 
 function monthKey(date: string) {

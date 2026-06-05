@@ -731,7 +731,11 @@ export function getDemoPortalData(clientId = clients[0].id): PortalData {
       (item) =>
         item.clientId === selectedClient.id || item.visibility === "internal"
     ),
-    tasks: tasks.filter((item) => item.clientId === selectedClient.id)
+    tasks: tasks.filter((item) => item.clientId === selectedClient.id),
+    integrations: [],
+    connectedAssets: [],
+    syncLogs: [],
+    leadEvents: []
   };
 }
 
@@ -759,6 +763,10 @@ export function getAllDemoData(): PortalData {
     leaderboards,
     scores,
     alerts,
-    tasks
+    tasks,
+    integrations: [],
+    connectedAssets: [],
+    syncLogs: [],
+    leadEvents: []
   };
 }

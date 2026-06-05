@@ -5,6 +5,7 @@ import { runMetaSocialSync } from "@/lib/integrations/meta/metaSocialSync";
 import { syncMetaAssetsForIntegration } from "@/lib/integrations/meta/metaService";
 import { META_PROVIDER } from "@/lib/integrations/meta/metaTypes";
 import { getIntegration } from "@/lib/integrations/store";
+import { getMissingServerEnv } from "@/lib/server/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,11 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as SyncBody;
   const mode = body.mode ?? "all";
+  const missing = getMissingServerEnv(["META_GRAPH_VERSION", "ENCRYPTION_KEY"]);
+
+  if (missing.length) {
+    return NextResponse.json({ error: "Configuracion Meta incompleta", missing }, { status: 503 });
+  }
 
   if (mode === "assets") {
     if (!body.clientId) {

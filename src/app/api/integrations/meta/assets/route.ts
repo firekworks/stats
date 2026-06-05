@@ -8,6 +8,7 @@ import {
 import { syncMetaAssetsForIntegration } from "@/lib/integrations/meta/metaService";
 import { META_PROVIDER } from "@/lib/integrations/meta/metaTypes";
 import { getIntegration, type DbRow } from "@/lib/integrations/store";
+import { getMissingServerEnv } from "@/lib/server/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +55,12 @@ export async function POST(request: Request) {
   }
 
   if (body.refresh) {
+    const missing = getMissingServerEnv(["META_GRAPH_VERSION", "ENCRYPTION_KEY"]);
+
+    if (missing.length) {
+      return NextResponse.json({ error: "Configuracion Meta incompleta", missing }, { status: 503 });
+    }
+
     await syncMetaAssetsForIntegration({
       db: auth.profile.admin,
       integration

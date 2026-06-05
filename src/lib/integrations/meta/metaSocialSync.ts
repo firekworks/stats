@@ -287,6 +287,7 @@ async function upsertContentItem({
     connected_asset_id: asString(asset.id) || null,
     provider: META_PROVIDER,
     external_id: externalId,
+    external_media_id: externalId,
     external_account_id: asString(asset.external_id),
     type: mapContentType(item),
     platform,
@@ -300,6 +301,7 @@ async function upsertContentItem({
     thumbnail_url: asString(item.thumbnail_url) || null,
     source: "meta",
     sync_status: "synced",
+    lifecycle_status: "published",
     raw_payload: item,
     last_synced_at: now,
     updated_at: now

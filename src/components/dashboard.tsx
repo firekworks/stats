@@ -191,6 +191,8 @@ export function ClientDashboard({ data }: { data: PortalData }) {
         />
       </section>
 
+      <RealDataBlocks data={data} />
+
       <section className="split">
         <Card className="chart-card">
           <CardHeader
@@ -333,6 +335,8 @@ function ClientDashboardEmpty({ data }: { data: PortalData }) {
         <MetricCard icon={TrendingUp} label="ROI" value="Sin datos" tone="orange" />
       </section>
 
+      <RealDataBlocks data={data} />
+
       <section className="grid grid-2">
         <Card>
           <CardHeader title="Proximas acciones" description="Plan operativo" />
@@ -367,6 +371,217 @@ function ClientDashboardEmpty({ data }: { data: PortalData }) {
       </section>
     </div>
   );
+}
+
+function RealDataBlocks({ data }: { data: PortalData }) {
+  const campaignTotals = data.campaigns.reduce(
+    (total, campaign) => ({
+      spend: total.spend + campaign.spend,
+      impressions: total.impressions + (campaign.impressions ?? 0),
+      clicks: total.clicks + (campaign.clicks ?? 0),
+      leads: total.leads + campaign.leads,
+      messages: total.messages + (campaign.messages ?? 0),
+      conversions: total.conversions + (campaign.conversions ?? 0)
+    }),
+    {
+      spend: 0,
+      impressions: 0,
+      clicks: 0,
+      leads: 0,
+      messages: 0,
+      conversions: 0
+    }
+  );
+  const bestCampaign = data.campaigns
+    .slice()
+    .sort((a, b) => b.leads - a.leads || b.spend - a.spend)[0];
+  const contentTotals = data.content.reduce(
+    (total, item) => ({
+      reach: total.reach + item.reach,
+      impressions: total.impressions + (item.impressions ?? 0),
+      views: total.views + item.views + (item.plays ?? 0),
+      likes: total.likes + item.likes,
+      comments: total.comments + item.comments,
+      shares: total.shares + item.shares,
+      saves: total.saves + item.saves
+    }),
+    {
+      reach: 0,
+      impressions: 0,
+      views: 0,
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      saves: 0
+    }
+  );
+  const bestContent = data.content
+    .slice()
+    .sort((a, b) => b.engagementRate - a.engagementRate || b.views - a.views)[0];
+  const meta = data.integrations.find((integration) => integration.provider === "meta");
+  const selectedAssets = data.connectedAssets.filter((asset) => asset.isSelected);
+  const lastLog = data.syncLogs[0];
+
+  return (
+    <section className="grid grid-2">
+      <Card>
+        <CardHeader
+          title="Campañas Meta"
+          description={data.campaigns.length ? "Datos sincronizados" : "Sin datos"}
+          action={<StatusBadge status={data.campaigns.length ? "active" : "pending"} />}
+        />
+        <div className="mt-5 grid gap-3">
+          {data.campaigns.length ? (
+            <>
+              <div className="grid grid-2">
+                <SmallDashboardStat label="Inversion" value={formatCurrency(campaignTotals.spend)} />
+                <SmallDashboardStat label="Impresiones" value={formatCompactNumber(campaignTotals.impressions)} />
+                <SmallDashboardStat label="Clics" value={formatNumber(campaignTotals.clicks)} />
+                <SmallDashboardStat label="Leads" value={formatNumber(campaignTotals.leads)} />
+                <SmallDashboardStat label="Mensajes" value={formatNumber(campaignTotals.messages)} />
+                <SmallDashboardStat label="Conversiones" value={formatNumber(campaignTotals.conversions)} />
+              </div>
+              <div className="list-item">
+                <div className="list-item-main">
+                  <strong>{bestCampaign?.name ?? "Sin campaña destacada"}</strong>
+                  <span>Mejor campaña por leads y gasto real.</span>
+                </div>
+                <span className="badge badge-blue">
+                  {formatNumber(bestCampaign?.leads ?? 0)} leads
+                </span>
+              </div>
+            </>
+          ) : (
+            <DashboardEmpty title="No hay campañas conectadas" text="Conecta Meta para empezar." />
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Contenido publicado"
+          description={data.content.length ? "Facebook e Instagram" : "Sin datos"}
+          action={<StatusBadge status={data.content.length ? "published" : "pending"} />}
+        />
+        <div className="mt-5 grid gap-3">
+          {data.content.length ? (
+            <>
+              <div className="grid grid-2">
+                <SmallDashboardStat label="Piezas" value={formatNumber(data.content.length)} />
+                <SmallDashboardStat label="Alcance" value={formatCompactNumber(contentTotals.reach)} />
+                <SmallDashboardStat label="Impresiones" value={formatCompactNumber(contentTotals.impressions)} />
+                <SmallDashboardStat label="Vistas/plays" value={formatCompactNumber(contentTotals.views)} />
+                <SmallDashboardStat label="Interacciones" value={formatNumber(contentTotals.likes + contentTotals.comments + contentTotals.shares + contentTotals.saves)} />
+              </div>
+              <div className="list-item">
+                <div className="list-item-main">
+                  <strong>{bestContent?.title ?? "Sin contenido destacado"}</strong>
+                  <span>Mejor contenido por engagement.</span>
+                </div>
+                <span className="badge badge-green">
+                  {formatPercent(bestContent?.engagementRate ?? 0)}
+                </span>
+              </div>
+            </>
+          ) : (
+            <DashboardEmpty title="No hay contenido sincronizado" text="Los reels/posts apareceran cuando Meta permita leerlos." />
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Leads y eventos"
+          description={data.leadEvents.length ? "Entradas reales" : "Sin eventos"}
+          action={<MessageCircle size={22} />}
+        />
+        <div className="mt-5 list">
+          {data.leadEvents.length ? (
+            data.leadEvents.slice(0, 4).map((event) => (
+              <div className="list-item" key={event.id}>
+                <div className="list-item-main">
+                  <strong>{event.contactName ?? "Lead sin nombre"}</strong>
+                  <span>
+                    {event.provider} · {event.channel} · {formatDateShort(event.occurredAt)}
+                  </span>
+                </div>
+                <span className="badge badge-blue">Entrada</span>
+              </div>
+            ))
+          ) : (
+            <DashboardEmpty title="Sin leads sincronizados todavía" text="Los eventos de formularios, mensajes o conversiones entraran por Meta/WhatsApp." />
+          )}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Integraciones"
+          description={meta?.status === "connected" ? "Meta conectado" : "Pendiente"}
+          action={<StatusBadge status={meta?.status ?? "pending"} />}
+        />
+        <div className="mt-5 list">
+          <div className="list-item">
+            <div className="list-item-main">
+              <strong>{meta?.externalAccountName ?? meta?.providerUserName ?? "Meta no conectado"}</strong>
+              <span>
+                {meta?.lastSyncAt
+                  ? `Ultima sincronizacion: ${formatDateShort(meta.lastSyncAt)}`
+                  : "Conecta Meta para empezar"}
+              </span>
+            </div>
+            <span className="badge badge-gray">
+              {formatNumber(selectedAssets.length)} activos
+            </span>
+          </div>
+          {lastLog ? (
+            <div className="list-item">
+              <div className="list-item-main">
+                <strong>Ultimo job: {lastLog.provider}</strong>
+                <span>{lastLog.errorMessage ?? formatDateShort(lastLog.startedAt)}</span>
+              </div>
+              <StatusBadge status={lastLog.status} />
+            </div>
+          ) : null}
+          {meta?.errorMessage ? (
+            <div className="notice-card">
+              <strong>Ultimo error</strong>
+              <span className="mt-2 block text-sm text-[#d92d20]">
+                {meta.errorMessage}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+function SmallDashboardStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="small-stat">
+      <span className="metric-label">{label}</span>
+      <strong className="block text-[1.35rem] leading-tight">{value}</strong>
+    </div>
+  );
+}
+
+function DashboardEmpty({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="notice-card">
+      <strong>{title}</strong>
+      <span className="mt-2 block text-sm text-[#6e6e73]">{text}</span>
+    </div>
+  );
+}
+
+function formatDateShort(value: string) {
+  return new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 export function AdminDashboard({ data }: { data: PortalData }) {

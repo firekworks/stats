@@ -1,18 +1,20 @@
 import {
   getAllDemoData,
-  getDemoPortalData,
-  getLatestMetric,
-  getPreviousMetric
+  getDemoPortalData
 } from "@/lib/demo-data";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   Alert,
   Campaign,
   Client,
   ClientScore,
+  ConnectedAsset,
   ContentItem,
+  IntegrationStatus,
+  IntegrationSyncLog,
   Invoice,
   InvoiceItem,
+  LeadEvent,
   LeaderboardEntry,
   MonthlyMetric,
   PortalData,
@@ -26,9 +28,10 @@ type Row = Record<string, any>;
 
 export async function getClientPortalData(clientId?: string) {
   const supabase = await getSupabaseServerClient();
+  const admin = getSupabaseAdminClient();
 
   if (!supabase || !clientId) {
-    return getDemoPortalData(clientId);
+    return getFallbackPortalData(clientId);
   }
 
   const [
@@ -74,8 +77,10 @@ export async function getClientPortalData(clientId?: string) {
   ]);
 
   if (clients.error || !clients.data?.[0]) {
-    return getDemoPortalData(clientId);
+    return getFallbackPortalData(clientId);
   }
+
+  const supplemental = await getSupplementalRows(admin, [clientId]);
 
   return makePortalData({
     clients: clients.data,
@@ -88,15 +93,17 @@ export async function getClientPortalData(clientId?: string) {
     leaderboards: leaderboards.data ?? [],
     scores: scores.data ?? [],
     alerts: alerts.data ?? [],
-    tasks: tasks.data ?? []
+    tasks: tasks.data ?? [],
+    ...supplemental
   });
 }
 
 export async function getAdminPortalData(): Promise<PortalData> {
   const supabase = await getSupabaseServerClient();
+  const admin = getSupabaseAdminClient();
 
   if (!supabase) {
-    return getAllDemoData();
+    return getFallbackPortalData();
   }
 
   const [
@@ -124,8 +131,11 @@ export async function getAdminPortalData(): Promise<PortalData> {
   ]);
 
   if (clients.error || !clients.data?.length) {
-    return getAllDemoData();
+    return getFallbackPortalData();
   }
+
+  const clientIds = clients.data.map((client) => String(client.id));
+  const supplemental = await getSupplementalRows(admin ?? supabase, clientIds);
 
   return makePortalData({
     clients: clients.data,
@@ -138,8 +148,84 @@ export async function getAdminPortalData(): Promise<PortalData> {
     leaderboards: leaderboards.data ?? [],
     scores: scores.data ?? [],
     alerts: alerts.data ?? [],
-    tasks: tasks.data ?? []
+    tasks: tasks.data ?? [],
+    ...supplemental
   });
+}
+
+async function getSupplementalRows(
+  supabase: Awaited<ReturnType<typeof getSupabaseServerClient>> | ReturnType<typeof getSupabaseAdminClient>,
+  clientIds: string[]
+) {
+  const empty = {
+    campaignMetrics: [] as Row[],
+    contentMetrics: [] as Row[],
+    integrations: [] as Row[],
+    connectedAssets: [] as Row[],
+    syncLogs: [] as Row[],
+    leadEvents: [] as Row[]
+  };
+
+  if (!supabase || !clientIds.length) {
+    return empty;
+  }
+
+  const [
+    campaignMetrics,
+    contentMetrics,
+    integrations,
+    connectedAssets,
+    syncLogs,
+    leadEvents
+  ] = await Promise.all([
+    supabase
+      .from("campaign_metrics")
+      .select("*")
+      .in("client_id", clientIds)
+      .order("date", { ascending: false }),
+    supabase
+      .from("content_metrics")
+      .select("*")
+      .in("client_id", clientIds)
+      .order("date", { ascending: false }),
+    supabase
+      .from("integrations")
+      .select(
+        "id, client_id, provider, status, external_account_name, provider_user_name, last_sync_at, error_message"
+      )
+      .in("client_id", clientIds),
+    supabase
+      .from("connected_assets")
+      .select(
+        "id, client_id, provider, asset_type, external_id, name, status, is_selected, last_synced_at"
+      )
+      .in("client_id", clientIds),
+    supabase
+      .from("integration_sync_logs")
+      .select(
+        "id, client_id, provider, status, records_inserted, records_updated, started_at, finished_at, error_message"
+      )
+      .in("client_id", clientIds)
+      .order("started_at", { ascending: false })
+      .limit(80),
+    supabase
+      .from("lead_events")
+      .select(
+        "id, client_id, provider, channel, campaign_id, content_item_id, contact_name, occurred_at, created_at"
+      )
+      .in("client_id", clientIds)
+      .order("occurred_at", { ascending: false })
+      .limit(80)
+  ]);
+
+  return {
+    campaignMetrics: campaignMetrics.data ?? [],
+    contentMetrics: contentMetrics.data ?? [],
+    integrations: integrations.data ?? [],
+    connectedAssets: connectedAssets.data ?? [],
+    syncLogs: syncLogs.data ?? [],
+    leadEvents: leadEvents.data ?? []
+  };
 }
 
 function makePortalData(input: {
@@ -154,17 +240,27 @@ function makePortalData(input: {
   scores: Row[];
   alerts: Row[];
   tasks: Row[];
+  campaignMetrics?: Row[];
+  contentMetrics?: Row[];
+  integrations?: Row[];
+  connectedAssets?: Row[];
+  syncLogs?: Row[];
+  leadEvents?: Row[];
 }): PortalData {
   const clients = input.clients.map(mapClient);
   const selectedClient =
     clients.find((client) => client.id === input.selectedClientId) ?? clients[0];
+  const campaignSummaries = summarizeCampaignMetrics(input.campaignMetrics ?? []);
+  const contentSummaries = summarizeContentMetrics(input.contentMetrics ?? []);
 
   return {
     clients,
     selectedClient,
     metrics: input.metrics.map(mapMetric),
-    campaigns: input.campaigns.map(mapCampaign),
-    content: input.content.map(mapContent),
+    campaigns: input.campaigns.map((row) =>
+      mapCampaign(row, campaignSummaries.get(row.id))
+    ),
+    content: input.content.map((row) => mapContent(row, contentSummaries.get(row.id))),
     reports: input.reports.map(mapReport),
     invoices: input.invoices.map(mapInvoice),
     leaderboards: input.leaderboards.map((entry) =>
@@ -172,7 +268,11 @@ function makePortalData(input: {
     ),
     scores: input.scores.map(mapScore),
     alerts: input.alerts.map(mapAlert),
-    tasks: input.tasks.map(mapTask)
+    tasks: input.tasks.map(mapTask),
+    integrations: (input.integrations ?? []).map(mapIntegration),
+    connectedAssets: (input.connectedAssets ?? []).map(mapConnectedAsset),
+    syncLogs: (input.syncLogs ?? []).map(mapSyncLog),
+    leadEvents: (input.leadEvents ?? []).map(mapLeadEvent)
   };
 }
 
@@ -262,29 +362,48 @@ function mapMetric(row: Row): MonthlyMetric {
   };
 }
 
-function mapCampaign(row: Row): Campaign {
+function mapCampaign(row: Row, summary?: CampaignMetricSummary): Campaign {
+  const budget = Number(row.planned_budget ?? row.budget ?? 0);
+  const spend = Number(row.real_spend ?? summary?.spend ?? row.spend ?? 0);
+  const leads = Number(summary?.leads ?? row.leads ?? 0);
+
   return {
     id: row.id,
     clientId: row.client_id,
     name: row.name,
     platform: row.platform,
     objective: row.objective,
-    budget: Number(row.budget ?? 0),
-    spend: Number(row.spend ?? 0),
+    budget,
+    spend,
     startDate: row.start_date,
     endDate: row.end_date,
     status: row.status,
-    ctr: Number(row.ctr ?? 0),
-    cpc: Number(row.cpc ?? 0),
-    cpm: Number(row.cpm ?? 0),
-    leads: Number(row.leads ?? 0),
-    costPerLead: Number(row.cost_per_lead ?? 0),
+    impressions: Number(summary?.impressions ?? row.impressions ?? 0),
+    reach: Number(summary?.reach ?? row.reach ?? 0),
+    clicks: Number(summary?.clicks ?? row.clicks ?? 0),
+    ctr: Number(summary?.ctr ?? row.ctr ?? 0),
+    cpc: Number(summary?.cpc ?? row.cpc ?? 0),
+    cpm: Number(summary?.cpm ?? row.cpm ?? 0),
+    leads,
+    messages: Number(summary?.messages ?? row.messages ?? 0),
+    conversions: Number(summary?.conversions ?? row.conversions ?? 0),
+    costPerLead: Number(summary?.costPerLead ?? row.cost_per_lead ?? 0),
     roas: row.roas === null ? null : Number(row.roas),
-    visibleSummary: row.visible_summary ?? row.client_visible_summary ?? ""
+    visibleSummary: row.visible_summary ?? row.client_visible_summary ?? "",
+    source: row.source ?? null,
+    syncStatus: row.sync_status ?? null,
+    externalCampaignId: row.external_campaign_id ?? row.external_id ?? null,
+    externalAdAccountId: row.external_ad_account_id ?? row.external_account_id ?? null,
+    plannedBudget: budget,
+    realSpend: spend,
+    servicePrice: Number(row.service_price ?? 0),
+    internalPrice: Number(row.internal_price ?? 0),
+    lifecycleStatus: row.lifecycle_status ?? null,
+    lastSyncedAt: row.last_synced_at ?? null
   };
 }
 
-function mapContent(row: Row): ContentItem {
+function mapContent(row: Row, summary?: ContentMetricSummary): ContentItem {
   return {
     id: row.id,
     clientId: row.client_id,
@@ -295,16 +414,27 @@ function mapContent(row: Row): ContentItem {
     status: row.status,
     url: row.url ?? "#",
     storagePath: row.storage_path,
-    views: Number(row.views ?? 0),
-    reach: Number(row.reach ?? 0),
-    likes: Number(row.likes ?? 0),
-    comments: Number(row.comments ?? 0),
-    shares: Number(row.shares ?? 0),
-    saves: Number(row.saves ?? 0),
-    engagementRate: Number(row.engagement_rate ?? 0),
-    performance: row.performance,
+    views: Number(summary?.views ?? row.views ?? 0),
+    reach: Number(summary?.reach ?? row.reach ?? 0),
+    impressions: Number(summary?.impressions ?? row.impressions ?? 0),
+    plays: Number(summary?.plays ?? row.plays ?? 0),
+    likes: Number(summary?.likes ?? row.likes ?? 0),
+    comments: Number(summary?.comments ?? row.comments ?? 0),
+    shares: Number(summary?.shares ?? row.shares ?? 0),
+    saves: Number(summary?.saves ?? row.saves ?? 0),
+    clicks: Number(summary?.clicks ?? row.clicks ?? 0),
+    engagementRate: Number(summary?.engagementRate ?? row.engagement_rate ?? 0),
+    performance: row.performance ?? row.performance_label ?? "ok",
     reusable: Boolean(row.reusable),
-    learning: row.learning ?? ""
+    learning: row.learning ?? row.caption ?? "",
+    source: row.source ?? null,
+    syncStatus: row.sync_status ?? null,
+    externalMediaId: row.external_media_id ?? row.external_id ?? null,
+    externalAccountId: row.external_account_id ?? null,
+    servicePrice: Number(row.service_price ?? 0),
+    internalPrice: Number(row.internal_price ?? 0),
+    lifecycleStatus: row.lifecycle_status ?? null,
+    lastSyncedAt: row.last_synced_at ?? null
   };
 }
 
@@ -405,4 +535,235 @@ function mapTask(row: Row): Task {
   };
 }
 
-export { getLatestMetric, getPreviousMetric };
+function mapIntegration(row: Row): IntegrationStatus {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    provider: row.provider,
+    status: row.status,
+    externalAccountName: row.external_account_name ?? null,
+    providerUserName: row.provider_user_name ?? null,
+    lastSyncAt: row.last_sync_at ?? null,
+    errorMessage: row.error_message ?? null
+  };
+}
+
+function mapConnectedAsset(row: Row): ConnectedAsset {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    provider: row.provider,
+    assetType: row.asset_type,
+    externalId: row.external_id,
+    name: row.name,
+    status: row.status,
+    isSelected: Boolean(row.is_selected),
+    lastSyncedAt: row.last_synced_at ?? null
+  };
+}
+
+function mapSyncLog(row: Row): IntegrationSyncLog {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    provider: row.provider,
+    status: row.status,
+    recordsInserted: Number(row.records_inserted ?? 0),
+    recordsUpdated: Number(row.records_updated ?? 0),
+    startedAt: row.started_at,
+    finishedAt: row.finished_at ?? null,
+    errorMessage: row.error_message ?? null
+  };
+}
+
+function mapLeadEvent(row: Row): LeadEvent {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    provider: row.provider,
+    channel: row.channel,
+    campaignId: row.campaign_id ?? null,
+    contentItemId: row.content_item_id ?? null,
+    contactName: row.contact_name ?? null,
+    occurredAt: row.occurred_at,
+    createdAt: row.created_at
+  };
+}
+
+type CampaignMetricSummary = {
+  spend: number;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  leads: number;
+  messages: number;
+  conversions: number;
+  ctr: number;
+  cpc: number;
+  cpm: number;
+  costPerLead: number;
+};
+
+function summarizeCampaignMetrics(rows: Row[]) {
+  const summaries = new Map<string, CampaignMetricSummary>();
+
+  rows.forEach((row) => {
+    const campaignId = row.campaign_id;
+    if (!campaignId) return;
+
+    const current =
+      summaries.get(campaignId) ??
+      {
+        spend: 0,
+        impressions: 0,
+        reach: 0,
+        clicks: 0,
+        leads: 0,
+        messages: 0,
+        conversions: 0,
+        ctr: 0,
+        cpc: 0,
+        cpm: 0,
+        costPerLead: 0
+      };
+
+    current.spend += Number(row.spend ?? 0);
+    current.impressions += Number(row.impressions ?? 0);
+    current.reach += Number(row.reach ?? 0);
+    current.clicks += Number(row.clicks ?? 0);
+    current.leads += Number(row.leads ?? 0);
+    current.messages += Number(row.messages ?? 0);
+    current.conversions += Number(row.conversions ?? 0);
+    summaries.set(campaignId, current);
+  });
+
+  summaries.forEach((summary) => {
+    summary.ctr =
+      summary.impressions > 0 ? Number(((summary.clicks / summary.impressions) * 100).toFixed(2)) : 0;
+    summary.cpc =
+      summary.clicks > 0 ? Number((summary.spend / summary.clicks).toFixed(2)) : 0;
+    summary.cpm =
+      summary.impressions > 0 ? Number((summary.spend / (summary.impressions / 1000)).toFixed(2)) : 0;
+    summary.costPerLead =
+      summary.leads > 0 ? Number((summary.spend / summary.leads).toFixed(2)) : 0;
+  });
+
+  return summaries;
+}
+
+type ContentMetricSummary = {
+  views: number;
+  reach: number;
+  impressions: number;
+  plays: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  clicks: number;
+  engagementRate: number;
+};
+
+function summarizeContentMetrics(rows: Row[]) {
+  const summaries = new Map<string, ContentMetricSummary>();
+
+  rows.forEach((row) => {
+    const contentId = row.content_id;
+    if (!contentId) return;
+
+    const current =
+      summaries.get(contentId) ??
+      {
+        views: 0,
+        reach: 0,
+        impressions: 0,
+        plays: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        saves: 0,
+        clicks: 0,
+        engagementRate: 0
+      };
+
+    current.views += Number(row.views ?? 0);
+    current.reach += Number(row.reach ?? 0);
+    current.impressions += Number(row.impressions ?? 0);
+    current.plays += Number(row.plays ?? 0);
+    current.likes += Number(row.likes ?? 0);
+    current.comments += Number(row.comments ?? 0);
+    current.shares += Number(row.shares ?? 0);
+    current.saves += Number(row.saves ?? 0);
+    current.clicks += Number(row.clicks ?? 0);
+    summaries.set(contentId, current);
+  });
+
+  summaries.forEach((summary) => {
+    const interactions =
+      summary.likes + summary.comments + summary.shares + summary.saves;
+    const denominator = summary.reach || summary.impressions || summary.views;
+    summary.engagementRate =
+      denominator > 0 ? Number(((interactions / denominator) * 100).toFixed(2)) : 0;
+  });
+
+  return summaries;
+}
+
+function getFallbackPortalData(clientId?: string): PortalData {
+  if (isDemoModeEnabled()) {
+    return clientId ? getDemoPortalData(clientId) : getAllDemoData();
+  }
+
+  return makeEmptyPortalData(clientId);
+}
+
+function makeEmptyPortalData(clientId = "no-client"): PortalData {
+  const selectedClient: Client = {
+    id: clientId,
+    slug: "sin-cliente",
+    publicName: "Sin cliente",
+    legalName: "Sin cliente",
+    leadId: null,
+    source: null,
+    taxId: null,
+    billingEmail: null,
+    billingAddress: null,
+    phone: null,
+    website: null,
+    industry: "",
+    status: "paused",
+    city: "",
+    averageTicket: 0,
+    allowPublicLeaderboardName: false,
+    planName: "Sin plan",
+    planStatus: "Pausado",
+    monthlyFee: 0,
+    onboardedAt: new Date().toISOString(),
+    publicLeaderboardName: "Sin cliente"
+  };
+
+  return {
+    clients: clientId === "no-client" ? [] : [selectedClient],
+    selectedClient,
+    metrics: [],
+    campaigns: [],
+    content: [],
+    reports: [],
+    invoices: [],
+    leaderboards: [],
+    scores: [],
+    alerts: [],
+    tasks: [],
+    integrations: [],
+    connectedAssets: [],
+    syncLogs: [],
+    leadEvents: []
+  };
+}
+
+function isDemoModeEnabled() {
+  return (
+    process.env.STATS_DEMO_MODE === "true" ||
+    process.env.NEXT_PUBLIC_STATS_DEMO_MODE === "true"
+  );
+}
