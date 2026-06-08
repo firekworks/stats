@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createGoogleCalendarEvent } from "@/lib/integrations/google/workspaceService";
 import { requireInternalRequest } from "@/lib/integrations/http";
 
 export const runtime = "nodejs";
@@ -15,6 +16,7 @@ type CalendarBody = {
   location?: string | null;
   notes?: string | null;
   isDemo?: boolean;
+  syncGoogle?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -37,6 +39,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Fecha no valida" }, { status: 400 });
   }
 
+  let googleCalendarEventId: string | null = null;
+  let googleCalendar = "not_requested";
+
+  if (body.syncGoogle) {
+    try {
+      const result = await createGoogleCalendarEvent({
+        db: auth.profile.admin,
+        clientId: body.clientId,
+        input: {
+          title: body.title,
+          startAt: start.toISOString(),
+          endAt: end?.toISOString() ?? null,
+          notes: body.notes ?? null,
+          location: body.location ?? null
+        }
+      });
+      googleCalendarEventId = result.id;
+      googleCalendar = result.status;
+    } catch (error) {
+      googleCalendar =
+        error instanceof Error ? `error: ${error.message}` : "error";
+    }
+  }
+
   const { data, error } = await auth.profile.admin
     .from("calendar_events")
     .insert({
@@ -49,7 +75,9 @@ export async function POST(request: Request) {
       start_at: start.toISOString(),
       end_at: end?.toISOString() ?? null,
       location: body.location ?? "Stats",
+      google_calendar_event_id: googleCalendarEventId,
       notes: body.notes ?? null,
+      sync_google_requested: Boolean(body.syncGoogle),
       created_by: auth.profile.userId,
       is_demo: Boolean(body.isDemo)
     })
@@ -60,15 +88,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const googleConfigured = Boolean(
-    process.env.GOOGLE_CALENDAR_CLIENT_ID &&
-      process.env.GOOGLE_CALENDAR_CLIENT_SECRET &&
-      process.env.GOOGLE_CALENDAR_REFRESH_TOKEN &&
-      process.env.FIREKWORKS_CALENDAR_ID
-  );
-
   return NextResponse.json({
     event: data,
-    googleCalendar: googleConfigured ? "pending_connector" : "internal_fallback"
+    googleCalendar
   });
 }

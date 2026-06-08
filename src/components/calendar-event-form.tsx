@@ -20,7 +20,10 @@ export function CalendarEventForm({
   const [title, setTitle] = useState("");
   const [type, setType] = useState("Publicación");
   const [startAt, setStartAt] = useState(defaultDateTime());
+  const [endAt, setEndAt] = useState("");
   const [contentItemId, setContentItemId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [syncGoogle, setSyncGoogle] = useState(false);
   const [state, setState] = useState<FormState>("idle");
 
   const filteredContent = useMemo(
@@ -44,7 +47,10 @@ export function CalendarEventForm({
         title,
         type,
         startAt,
+        endAt: endAt || null,
         contentItemId: contentItemId || null,
+        notes: notes || null,
+        syncGoogle,
         campaignId:
           filteredCampaigns.find((campaign) => campaign.clientId === clientId)
             ?.id ?? null
@@ -58,6 +64,7 @@ export function CalendarEventForm({
 
     setState("done");
     setTitle("");
+    setNotes("");
   }
 
   return (
@@ -78,9 +85,11 @@ export function CalendarEventForm({
           <select value={type} onChange={(event) => setType(event.target.value)}>
             <option>Publicación</option>
             <option>Grabación</option>
-            <option>Revisión cliente</option>
+            <option>Edición</option>
+            <option>Revisión</option>
             <option>Entrega</option>
             <option>Reunión</option>
+            <option>Factura</option>
           </select>
         </label>
       </div>
@@ -104,6 +113,16 @@ export function CalendarEventForm({
           />
         </label>
         <label className="field">
+          <span>Fin</span>
+          <input
+            type="datetime-local"
+            value={endAt}
+            onChange={(event) => setEndAt(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="form-grid">
+        <label className="field">
           <span>Pieza vinculada</span>
           <select
             value={contentItemId}
@@ -117,7 +136,24 @@ export function CalendarEventForm({
             ))}
           </select>
         </label>
+        <label className="check-field">
+          <input
+            checked={syncGoogle}
+            onChange={(event) => setSyncGoogle(event.target.checked)}
+            type="checkbox"
+          />
+          <span>Sincronizar con Google Calendar</span>
+        </label>
       </div>
+      <label className="field">
+        <span>Descripción</span>
+        <textarea
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
+          rows={3}
+          placeholder="Notas internas, enlace Drive/Canva o contexto para el equipo."
+        />
+      </label>
       <button className="button" type="submit" disabled={state === "loading"}>
         {state === "loading" ? (
           <Loader2 className="animate-spin" size={16} />
@@ -130,8 +166,8 @@ export function CalendarEventForm({
         <div className="notice-card notice-success">
           <strong>Evento creado</strong>
           <span className="mt-2 block text-sm">
-            Se ha guardado en Stats. Si Google Calendar no está configurado,
-            queda como calendario interno.
+            Se ha guardado en Stats. Si marcaste Google Calendar y está conectado,
+            también queda sincronizado.
           </span>
         </div>
       ) : null}

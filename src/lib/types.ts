@@ -74,6 +74,7 @@ export type Client = {
   billingEmail?: string | null;
   billingAddress?: string | null;
   phone?: string | null;
+  contactName?: string | null;
   website?: string | null;
   industry: string;
   status: ClientStatus;
@@ -85,6 +86,8 @@ export type Client = {
   objective?: string | null;
   services?: string[];
   driveFolderId?: string | null;
+  driveFolderUrl?: string | null;
+  portalAccessToken?: string | null;
   convertedFromLead?: boolean;
   conversionDate?: string | null;
   originalLeadScore?: number | null;
@@ -95,6 +98,7 @@ export type Client = {
   planName: string;
   planStatus: "Activo" | "Pausado" | "Baja";
   monthlyFee: number;
+  adBudget?: number;
   onboardedAt: string;
   publicLeaderboardName: string;
 };
@@ -198,6 +202,8 @@ export type ContentItem = {
   storagePath: string | null;
   driveFolderId?: string | null;
   googleDriveFolderId?: string | null;
+  googleDriveFileId?: string | null;
+  driveFileUrl?: string | null;
   canvaDesignId?: string | null;
   canvaEditUrl?: string | null;
   canvaViewUrl?: string | null;
@@ -207,6 +213,8 @@ export type ContentItem = {
   notes?: string | null;
   assignedTo?: string | null;
   isDemo?: boolean;
+  isPromoted?: boolean;
+  promotionBudget?: number;
   views: number;
   reach: number;
   impressions?: number;

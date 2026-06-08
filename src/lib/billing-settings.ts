@@ -18,9 +18,9 @@ export type BillingSettings = {
 
 export const defaultBillingSettings: BillingSettings = {
   businessName: "Firekworks",
-  legalName: "Pendiente de completar",
-  taxId: "Pendiente",
-  fiscalAddress: "Pendiente de completar",
+  legalName: "Iker Maya Belda",
+  taxId: "48782258V",
+  fiscalAddress: "Calle San Vicente, 24, 03420 Castalla, Alicante, España",
   email: "hola@firekworks.es",
   phone: "Pendiente",
   iban: "Pendiente",

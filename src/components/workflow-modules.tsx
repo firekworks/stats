@@ -4,24 +4,29 @@ import {
   CheckCircle2,
   Clock3,
   CreditCard,
+  Eye,
   ExternalLink,
   FileBarChart,
   FileText,
   FolderKanban,
-  LayoutGrid,
-  Link2,
   Megaphone,
+  MessageCircle,
   Palette,
   ReceiptText,
   Route,
-  Settings,
   Sparkles,
   Target,
-  WandSparkles
+  TrendingUp
 } from "lucide-react";
 import { CalendarEventForm } from "@/components/calendar-event-form";
 import { ContentIdeaGenerator } from "@/components/content-idea-generator";
 import { CopyLinkButton } from "@/components/copy-link-button";
+import {
+  ClientSettingsForm,
+  DriveAssetsPanel,
+  NewContentPieceForm,
+  NewInvoiceForm
+} from "@/components/admin-forms";
 import { IntegrationActionButton } from "@/components/integration-action-button";
 import { CampaignsModule } from "@/components/modules";
 import { PdfDownloadButton } from "@/components/pdf-download-button";
@@ -54,65 +59,23 @@ export function DemosModule({
 
   return (
     <div className="grid">
-      <section className="grid grid-4">
-        <MetricCard
-          icon={WandSparkles}
-          label="Demos activas"
-          value={String(demos.length)}
-          helper="Restaurante, clínica y gimnasio"
-          tone="blue"
-        />
-        <MetricCard
-          icon={Megaphone}
-          label="Campañas demo"
-          value={String(data.campaigns.filter((campaign) => campaign.isDemo).length)}
-          helper="Con embudo y checklist"
-          tone="mint"
-        />
-        <MetricCard
-          icon={Palette}
-          label="Piezas demo"
-          value={String(data.content.filter((item) => item.isDemo).length)}
-          helper="Códigos REEL/POST/CAR"
-          tone="green"
-        />
-        <MetricCard
-          icon={CalendarDays}
-          label="Eventos demo"
-          value={String(data.calendarEvents.filter((event) => event.isDemo).length)}
-          helper="Calendario interno"
-          tone="orange"
-        />
-      </section>
-
-      <Card>
+      <Card className="demo-brief-card">
         <CardHeader
-          title="Seed y reset controlado"
-          description="Datos ficticios"
+          title="Portales demo"
+          description="Vista pública/anónima"
           action={
-            <div className="toolbar">
-              <IntegrationActionButton
-                endpoint="/api/admin/demos/seed"
-                body={{ mode: "seed" }}
-                label="Crear demos"
-                variant="secondary"
-              />
-              <IntegrationActionButton
-                endpoint="/api/admin/demos/reset"
-                body={{ mode: "reset" }}
-                label="Reset demos"
-                variant="ghost"
-              />
-            </div>
+            <IntegrationActionButton
+              endpoint="/api/admin/demos/seed"
+              body={{ mode: "seed" }}
+              label="Actualizar demos"
+              variant="secondary"
+            />
           }
         />
-        <div className="notice-card notice-success">
-          <strong>No borra datos reales</strong>
-          <span className="mt-2 block text-sm">
-            Estos botones solo hacen upsert de clientes marcados como demo. Los
-            clientes reales quedan intactos.
-          </span>
-        </div>
+        <p>
+          Enseña exactamente lo que verá un cliente: resumen, resultados,
+          contenido, calendario e informe. No incluye Leads, Radar ni datos reales.
+        </p>
       </Card>
 
       <section className="grid grid-3">
@@ -157,11 +120,14 @@ export function DemosModule({
                 <div className="toolbar justify-start">
                   <ButtonLink href={`/demo/${client.slug}`} variant="secondary">
                     <ExternalLink size={16} />
-                    Ver demo
+                    Ver portal demo
+                  </ButtonLink>
+                  <ButtonLink href={`/admin/clients?duplicate=${client.id}`} variant="ghost">
+                    Duplicar como real
                   </ButtonLink>
                   <ButtonLink href={`/admin/clients/${client.id}`} variant="ghost">
                     <FolderKanban size={16} />
-                    Editar
+                    Editar demo
                   </ButtonLink>
                   <CopyLinkButton value={demoUrl} />
                 </div>
@@ -193,81 +159,85 @@ export function CalendarModule({
 
   return (
     <div className="grid">
-      <section className="grid grid-4">
+      <section className="calendar-command">
         <MetricCard
           icon={CalendarDays}
-          label="Próximos eventos"
+          label="Próximos"
           value={String(upcoming.length)}
-          helper="Publicaciones, revisiones y reuniones"
+          helper="Publicaciones y entregas"
           tone="blue"
         />
         <MetricCard
           icon={Clock3}
           label="Esta semana"
           value={String(weekEvents.length)}
-          helper="Plan operativo"
+          helper="Agenda inmediata"
           tone="mint"
-        />
-        <MetricCard
-          icon={CheckCircle2}
-          label="Confirmados"
-          value={String(events.filter((event) => event.status === "confirmed").length)}
-          helper="Listos para ejecutar"
-          tone="green"
         />
         <MetricCard
           icon={Route}
           label="Pendientes"
           value={String(pending.length)}
-          helper="Requieren revisión"
+          helper="Por confirmar"
           tone="orange"
         />
+        <Card className="calendar-connect-card">
+          <CardHeader
+            title="Google Calendar"
+            description="Sincronización"
+            action={
+              <ButtonLink href="/api/google/auth" variant="secondary">
+                <ExternalLink size={16} />
+                Conectar
+              </ButtonLink>
+            }
+          />
+          <span className="badge badge-gray">Estado en Integraciones</span>
+        </Card>
       </section>
 
-      <section className="split">
+      <section className="calendar-layout">
+        <Card className="calendar-board-card">
+          <CardHeader
+            title="Calendario"
+            description="Mes"
+            action={
+              <div className="settings-tabs m-0">
+                <a href="#mes">Mes</a>
+                <a href="#semana">Semana</a>
+                <a href="#lista">Lista</a>
+              </div>
+            }
+          />
+          <CalendarBoard clients={clients} content={content} events={events} />
+        </Card>
         <Card>
-          <CardHeader title="Crear evento" description="Calendario interno" />
+          <CardHeader title="Crear evento" description="Stats + Google" />
           <div className="mt-5">
             <CalendarEventForm clients={clients} campaigns={campaigns} content={content} />
           </div>
         </Card>
+      </section>
 
+      <section id="lista">
         <Card>
-          <CardHeader title="Fallbacks" description="Google/Drive/Canva" />
-          <div className="mt-5 list">
-            <FallbackRow
-              title="Google Calendar"
-              text="Si no hay OAuth, Stats guarda el evento internamente."
-            />
-            <FallbackRow
-              title="Google Drive"
-              text="Las carpetas quedan como ids/campos preparados hasta conectar Drive."
-            />
-            <FallbackRow
-              title="Canva"
-              text="Los diseños guardan enlaces si existen; si no, hay mockup interno."
-            />
+          <CardHeader title="Lista" description="Próximos eventos" />
+          <div className="mt-5 calendar-list">
+            {events.length ? (
+              events.slice(0, 12).map((event) => (
+                <CalendarEventRow
+                  clients={clients}
+                  content={content}
+                  event={event}
+                  key={event.id}
+                />
+              ))
+            ) : (
+              <EmptyWorkflowState text="No hay eventos todavía." />
+            )}
           </div>
         </Card>
       </section>
-
-      <Card>
-        <CardHeader title="Agenda" description="Próximos 80 eventos" />
-        <div className="mt-5 calendar-list">
-          {events.length ? (
-            events.map((event) => (
-              <CalendarEventRow
-                clients={clients}
-                content={content}
-                event={event}
-                key={event.id}
-              />
-            ))
-          ) : (
-            <EmptyWorkflowState text="No hay eventos todavía." />
-          )}
-        </div>
-      </Card>
     </div>
   );
 }
@@ -349,12 +319,10 @@ export function CampaignWorkflowModule({
 export function ContentWorkflowModule({
   content,
   clients,
-  campaigns,
   admin = false
 }: {
   content: ContentItem[];
   clients: Client[];
-  campaigns: Campaign[];
   admin?: boolean;
 }) {
   const pending = content.filter((item) =>
@@ -435,87 +403,22 @@ export function ContentWorkflowModule({
       <Card>
         <CardHeader
           title={admin ? "Biblioteca operativa" : "Contenido entregado"}
-          description={admin ? "Calendario, kanban y lista" : "Piezas publicadas"}
+          description={admin ? "Grid visual" : "Piezas publicadas"}
           action={
             admin ? (
               <div className="settings-tabs m-0">
-                <a href="#calendario">Calendario</a>
-                <a href="#kanban">Kanban</a>
-                <a href="#lista">Lista</a>
+                <a href="#kanban">Estados</a>
+                <a href="#lista">Biblioteca</a>
               </div>
             ) : null
           }
         />
-        <div className="mt-5 content-workflow-list" id="lista">
-          {content.length ? (
-            content.map((item) => {
-              const client = clients.find((entry) => entry.id === item.clientId);
-              const campaign = campaigns.find((entry) => entry.id === item.campaignId);
-
-              return (
-                <div className="content-workflow-row" key={item.id}>
-                  <ContentPreviewMockup item={item} client={client} compact />
-                  <div className="content-workflow-main">
-                    <div className="toolbar justify-start">
-                      <span className="badge badge-blue">
-                        {item.contentCode ?? item.type}
-                      </span>
-                      <StatusBadge status={item.status} />
-                      {item.isDemo ? (
-                        <span className="badge badge-gray">Demo</span>
-                      ) : null}
-                    </div>
-                    <h3>{item.title}</h3>
-                    <p>{item.hook ?? item.learning}</p>
-                    <div className="content-meta-grid">
-                      <SmallWorkflowStat
-                        label="Cliente"
-                        value={client?.publicName ?? "Sin cliente"}
-                      />
-                      <SmallWorkflowStat label="Formato" value={item.type} />
-                      <SmallWorkflowStat
-                        label="Embudo"
-                        value={item.funnelStage ?? "Sin fase"}
-                      />
-                      <SmallWorkflowStat
-                        label="Publicación"
-                        value={formatDate(item.publishDate)}
-                      />
-                      <SmallWorkflowStat
-                        label="Campaña"
-                        value={campaign?.name ?? "Sin campaña"}
-                      />
-                      <SmallWorkflowStat
-                        label="Engagement"
-                        value={formatPercent(item.engagementRate)}
-                      />
-                    </div>
-                    <div className="toolbar justify-start">
-                      {admin ? (
-                        <ButtonLink href={`/admin/content/${item.id}`} variant="secondary">
-                          <LayoutGrid size={16} />
-                          Previsualizar
-                        </ButtonLink>
-                      ) : null}
-                      {item.canvaViewUrl ? (
-                        <ButtonLink href={item.canvaViewUrl} variant="ghost">
-                          <ExternalLink size={16} />
-                          Canva
-                        </ButtonLink>
-                      ) : (
-                        <span className="badge badge-gray">
-                          <Link2 size={14} />
-                          Canva pendiente
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <EmptyWorkflowState text="No hay contenido registrado todavía." />
-          )}
+        <div id="lista">
+          <ContentLibraryGrid
+            clients={clients}
+            content={content}
+            showInternal={admin}
+          />
         </div>
       </Card>
     </div>
@@ -534,6 +437,7 @@ export function ContentPreviewMockup({
   const swatches = client?.brandColors?.length
     ? client.brandColors
     : ["#1d1d1f", "#0071e3", "#0f9f8f"];
+  const platformLabel = getPublicPlatformLabel(item.platform);
 
   return (
     <div className={compact ? "mockup mockup-compact" : "mockup"}>
@@ -544,7 +448,7 @@ export function ContentPreviewMockup({
         />
         <div>
           <strong>{client?.publicName ?? "Firekworks Stats"}</strong>
-          <span>{item.platform}</span>
+          <span>{platformLabel}</span>
         </div>
       </div>
       <div
@@ -564,6 +468,224 @@ export function ContentPreviewMockup({
         <span>{formatPercent(item.engagementRate)}</span>
       </div>
     </div>
+  );
+}
+
+export function ContentLibraryGrid({
+  content,
+  clients,
+  showInternal = false
+}: {
+  content: ContentItem[];
+  clients: Client[];
+  showInternal?: boolean;
+}) {
+  if (!content.length) {
+    return <EmptyWorkflowState text="No hay piezas registradas todavía." />;
+  }
+
+  return (
+    <div className="content-library-grid mt-5">
+      {content.map((item) => {
+        const client = clients.find((entry) => entry.id === item.clientId);
+
+        return (
+          <article className="content-library-card" key={item.id}>
+            <ContentPreviewMockup item={item} client={client} compact />
+            <div className="content-library-body">
+              <div className="toolbar justify-start">
+                <span className="badge badge-blue">{item.contentCode ?? item.type}</span>
+                <StatusBadge status={publicContentStatus(item.status)} />
+                {item.isPromoted ? <span className="badge badge-orange">Promocionado</span> : null}
+              </div>
+              <h3>{item.title}</h3>
+              <span className="metric-label">
+                {item.type} · {formatDate(item.publishDate)}
+              </span>
+              <div className="content-meta-grid compact-content-meta">
+                <SmallWorkflowStat label="Alcance" value={formatCompactNumber(item.reach)} />
+                <SmallWorkflowStat label="Vistas" value={formatCompactNumber(item.views + (item.plays ?? 0))} />
+                <SmallWorkflowStat label="Engagement" value={formatPercent(item.engagementRate)} />
+              </div>
+              <div className="toolbar justify-start">
+                {item.driveFileUrl ? (
+                  <ButtonLink href={item.driveFileUrl} variant="ghost">
+                    <ExternalLink size={16} />
+                    Drive
+                  </ButtonLink>
+                ) : showInternal ? (
+                  <span className="badge badge-gray">Drive pendiente</span>
+                ) : null}
+                {item.canvaViewUrl ? (
+                  <ButtonLink href={item.canvaViewUrl} variant="ghost">
+                    <ExternalLink size={16} />
+                    Canva
+                  </ButtonLink>
+                ) : showInternal ? (
+                  <span className="badge badge-gray">Canva pendiente</span>
+                ) : null}
+              </div>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function publicContentStatus(status: string) {
+  if (status === "pending_approval") return "pending_approval";
+  if (["idea", "recorded", "editing"].includes(status)) return "pending";
+  return status;
+}
+
+function getPublicPlatformLabel(platform: string) {
+  if (platform === "Meta Ads") return "Anuncios";
+  if (platform === "Facebook") return "Redes sociales";
+  return platform;
+}
+
+export function ClientPortalView({
+  data,
+  demo = false
+}: {
+  data: PortalData;
+  demo?: boolean;
+}) {
+  const client = data.selectedClient;
+  const latest = data.metrics[0];
+  const campaign = data.campaigns[0];
+  const visibleContent = data.content.filter((item) =>
+    ["pending_approval", "scheduled", "published"].includes(item.status)
+  );
+  const upcomingEvents = data.calendarEvents;
+  const reportHref = `/api/reports/monthly?clientId=${client.id}${
+    latest ? `&month=${latest.month}&year=${latest.year}` : ""
+  }`;
+
+  return (
+    <main className="portal-client-page">
+      <section className="portal-client-hero" id="resumen">
+        <div>
+          <span className="eyebrow">{demo ? "Demo Firekworks" : "Portal cliente"}</span>
+          <h1>{client.publicName}</h1>
+          <p>
+            {client.industry} · {client.city} · {client.planName}
+          </p>
+        </div>
+        <nav className="portal-client-nav" aria-label="Portal cliente">
+          <a href="#resumen">Resumen</a>
+          <a href="#resultados">Resultados</a>
+          <a href="#contenido">Contenido</a>
+          <a href="#calendario">Calendario</a>
+          <a href="#informe">Informe</a>
+        </nav>
+      </section>
+
+      <section className="grid grid-4">
+        <MetricCard
+          icon={Eye}
+          label="Alcance"
+          value={formatCompactNumber(latest?.reach ?? 0)}
+          helper="Mes actual"
+          tone="blue"
+        />
+        <MetricCard
+          icon={Megaphone}
+          label="Impresiones"
+          value={formatCompactNumber(latest?.impressions ?? 0)}
+          helper="Visibilidad local"
+          tone="mint"
+        />
+        <MetricCard
+          icon={MessageCircle}
+          label="Mensajes"
+          value={formatNumber(latest?.messages ?? 0)}
+          helper={`${formatNumber(latest?.leads ?? 0)} oportunidades`}
+          tone="green"
+        />
+        <MetricCard
+          icon={TrendingUp}
+          label={latest?.roiMode === "real" ? "ROI real" : "ROI estimado"}
+          value={latest?.estimatedRoi ? `${formatDecimal(latest.estimatedRoi, 2)}x` : "Sin datos"}
+          helper="Marcado según datos disponibles"
+          tone="orange"
+        />
+      </section>
+
+      <section className="portal-client-summary">
+        <Card className="hero-result">
+          <span className="metric-label">Campaña del mes</span>
+          <strong className="portal-campaign-title">
+            {campaign?.offer ?? campaign?.name ?? "Plan mensual"}
+          </strong>
+          <p>{campaign?.visibleSummary ?? latest?.summary ?? "Trabajo mensual en curso."}</p>
+        </Card>
+        <Card>
+          <CardHeader title="Próximas publicaciones" description="Plan visible" />
+          <div className="mt-5 list">
+            {visibleContent.slice(0, 3).map((item) => (
+              <div className="list-item" key={item.id}>
+                <div className="list-item-main">
+                  <strong>{item.title}</strong>
+                  <span>{item.contentCode ?? item.type} · {formatDate(item.publishDate)}</span>
+                </div>
+                <StatusBadge status={publicContentStatus(item.status)} />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </section>
+
+      <section className="detail-section" id="resultados">
+        <Card>
+          <CardHeader
+            title="Resultados"
+            description={latest ? formatMonth(latest.month, latest.year) : "Mes actual"}
+          />
+          <div className="strategy-grid mt-5">
+            <SmallWorkflowStat
+              label="Interacciones"
+              value={formatNumber(
+                (latest?.websiteClicks ?? 0) + (latest?.whatsappClicks ?? 0) + (latest?.calls ?? 0)
+              )}
+            />
+            <SmallWorkflowStat label="Reservas / conversiones" value={formatNumber(latest?.bookings ?? 0)} />
+            <SmallWorkflowStat label="Inversión en anuncios" value={formatCurrency(latest?.adSpend ?? 0)} />
+            <SmallWorkflowStat label="Retorno estimado" value={formatCurrency(latest?.estimatedRevenue ?? 0)} />
+            <SmallWorkflowStat label="Diagnóstico" value={latest?.diagnosis ?? "Pendiente"} />
+            <SmallWorkflowStat label="Siguiente paso" value={latest?.nextMonthPlan ?? "Preparar plan"} />
+          </div>
+        </Card>
+      </section>
+
+      <section className="detail-section" id="contenido">
+        <Card>
+          <CardHeader title="Contenido" description="Entregado y programado" />
+          <ContentLibraryGrid clients={[client]} content={visibleContent} />
+        </Card>
+      </section>
+
+      <section className="detail-section" id="calendario">
+        <Card className="calendar-board-card">
+          <CardHeader title="Calendario" description="Publicaciones y entregas" />
+          <CalendarBoard clients={[client]} content={data.content} events={upcomingEvents} />
+        </Card>
+      </section>
+
+      <section className="detail-section" id="informe">
+        <Card>
+          <CardHeader
+            title="Informe mensual"
+            description={latest ? formatMonth(latest.month, latest.year) : "PDF"}
+            action={<PdfDownloadButton href={reportHref} label="Descargar informe" />}
+          />
+          <p className="m-0 mt-4 text-[#6e6e73]">
+            El ROI se marca como real solo cuando el cliente confirma ventas o reservas.
+          </p>
+        </Card>
+      </section>
+    </main>
   );
 }
 
@@ -603,41 +725,71 @@ export function ClientInternalDetail({
   const activeAlerts = data.alerts.filter((alert) =>
     ["critical", "warning"].includes(alert.severity)
   );
-  const connectedIntegrations = data.integrations.filter(
-    (integration) =>
-      integration.clientId === client.id && integration.status === "connected"
-  );
   const portalHref = client.isDemo ? `/demo/${client.slug}` : "/client";
+  const nextAction = nextTask?.title ?? "Definir siguiente paso";
+  const monthResult = latestMetric
+    ? `${formatNumber(latestMetric.leads)} leads · ${formatCompactNumber(latestMetric.reach)} alcance`
+    : "Sin resultado mensual";
 
   return (
     <div className="grid">
+      <section className="client-detail-hero">
+        <div>
+          <span className="eyebrow">{client.industry} · {client.city}</span>
+          <h2>{client.publicName}</h2>
+          <div className="toolbar justify-start">
+            <StatusBadge status={client.status} />
+            {client.isDemo ? <span className="badge badge-blue">Demo</span> : null}
+            <span className="badge badge-gray">{client.planName}</span>
+          </div>
+        </div>
+        <div className="toolbar">
+          <ButtonLink href={portalHref} variant="secondary">
+            <ExternalLink size={16} />
+            Ver portal cliente
+          </ButtonLink>
+          <a className="button button-ghost" href="#calendario">
+            <CalendarDays size={16} />
+            Crear evento
+          </a>
+          <a className="button button-ghost" href="#contenido">
+            <Palette size={16} />
+            Nueva pieza
+          </a>
+          <a className="button button-ghost" href="#facturas">
+            <ReceiptText size={16} />
+            Nueva factura
+          </a>
+        </div>
+      </section>
+
       <section className="grid grid-4">
         <MetricCard
           icon={CheckCircle2}
-          label="Estado"
-          value={client.isDemo ? "Demo" : statusLabel(client.status)}
-          helper={client.planName}
+          label="Próxima acción"
+          value={nextTask ? "Activa" : "Pendiente"}
+          helper={nextAction}
           tone="blue"
         />
         <MetricCard
-          icon={Sparkles}
-          label="Firekworks Level"
-          value={score?.levelName ?? "Nuevo"}
-          helper={`${score?.score ?? 0}/100`}
+          icon={CalendarDays}
+          label="Próximo evento"
+          value={nextEvent ? formatDate(nextEvent.startAt) : "Sin fecha"}
+          helper={nextEvent?.title ?? "Añade un evento"}
           tone="mint"
         />
         <MetricCard
           icon={Target}
-          label="Siguiente tarea"
-          value={nextTask ? "Activa" : "Sin tarea"}
-          helper={nextTask?.title ?? "Define un hito operativo"}
+          label="Última entrega"
+          value={lastDelivery?.contentCode ?? lastDelivery?.type ?? "Sin pieza"}
+          helper={lastDelivery?.title ?? "Sin contenido entregado"}
           tone="green"
         />
         <MetricCard
-          icon={CalendarDays}
-          label="Próximo hito"
-          value={nextEvent ? formatDate(nextEvent.startAt) : "Sin fecha"}
-          helper={nextEvent?.title ?? "Añade un evento"}
+          icon={FileBarChart}
+          label="Resultado del mes"
+          value={latestMetric ? formatCompactNumber(latestMetric.reach) : "Sin datos"}
+          helper={monthResult}
           tone="orange"
         />
       </section>
@@ -646,13 +798,14 @@ export function ClientInternalDetail({
         <a href="#resumen">Resumen</a>
         <a href="#campana">Campaña del mes</a>
         <a href="#calendario">Calendario</a>
-        <a href="#metricas">Métricas e informe</a>
+        <a href="#contenido">Contenido</a>
+        <a href="#resultados">Resultados e informe</a>
         <a href="#facturas">Facturas</a>
         <a href="#portal">Portal</a>
         <a href="#ajustes">Ajustes</a>
       </nav>
 
-      <section className="detail-section split" id="resumen">
+      <section className={activeAlerts.length ? "detail-section split" : "detail-section"} id="resumen">
         <Card>
           <CardHeader
             title="Resumen operativo"
@@ -663,7 +816,7 @@ export function ClientInternalDetail({
             <SmallWorkflowStat label="Plan" value={client.planName} />
             <SmallWorkflowStat
               label="Próxima acción"
-              value={nextTask?.title ?? nextEvent?.title ?? "Definir siguiente paso"}
+              value={nextAction}
             />
             <SmallWorkflowStat
               label="Última entrega"
@@ -671,21 +824,15 @@ export function ClientInternalDetail({
             />
             <SmallWorkflowStat
               label="Último resultado"
-              value={
-                latestMetric
-                  ? `${formatNumber(latestMetric.leads)} leads · ${formatCompactNumber(
-                      latestMetric.reach
-                    )} alcance`
-                  : "Sin métrica mensual"
-              }
+              value={monthResult}
             />
           </div>
         </Card>
-        <Card>
-          <CardHeader title="Alertas y accesos" description="Control interno" />
-          <div className="mt-5 list">
-            {activeAlerts.length ? (
-              activeAlerts.map((alert) => (
+        {activeAlerts.length ? (
+          <Card>
+            <CardHeader title="Alertas" description="Solo señales reales" />
+            <div className="mt-5 list">
+              {activeAlerts.map((alert) => (
                 <div className="list-item" key={alert.id}>
                   <AlertTriangle size={21} />
                   <div className="list-item-main">
@@ -700,29 +847,10 @@ export function ClientInternalDetail({
                     {alert.severity}
                   </span>
                 </div>
-              ))
-            ) : (
-              <div className="list-item">
-                <CheckCircle2 size={21} />
-                <div className="list-item-main">
-                  <strong>Sin alertas críticas</strong>
-                  <span>Cliente listo para producción normal.</span>
-                </div>
-                <span className="badge badge-green">ok</span>
-              </div>
-            )}
-            <div className="list-item">
-              <Settings size={21} />
-              <div className="list-item-main">
-                <strong>{connectedIntegrations.length} integraciones conectadas</strong>
-                <span>Meta, GBP y WhatsApp se gestionan desde Integraciones.</span>
-              </div>
-              <ButtonLink href="/admin/integrations" variant="ghost">
-                Abrir
-              </ButtonLink>
+              ))}
             </div>
-          </div>
-        </Card>
+          </Card>
+        ) : null}
       </section>
 
       <section className="detail-section" id="campana">
@@ -836,29 +964,31 @@ export function ClientInternalDetail({
             />
           </div>
         </Card>
-        <Card>
-          <CardHeader title="Próximos eventos" description="Agenda" />
-          <div className="mt-5 calendar-list">
-            {clientEvents.length ? (
-              clientEvents.map((event) => (
-                <CalendarEventRow
-                  clients={[client]}
-                  content={data.content}
-                  event={event}
-                  key={event.id}
-                />
-              ))
-            ) : (
-              <EmptyWorkflowState text="No hay eventos para este cliente." />
-            )}
-          </div>
+        <Card className="calendar-board-card">
+          <CardHeader title="Calendario del cliente" description="Mes" />
+          <CalendarBoard clients={[client]} content={data.content} events={clientEvents} />
         </Card>
       </section>
 
-      <section className="detail-section" id="metricas">
+      <section className="detail-section" id="contenido">
         <Card>
           <CardHeader
-            title="Métricas e informe"
+            title="Contenido"
+            description="Biblioteca visual"
+            action={<NewContentPieceForm campaigns={data.campaigns} client={client} />}
+          />
+          <ContentLibraryGrid
+            clients={[client]}
+            content={data.content}
+            showInternal
+          />
+        </Card>
+      </section>
+
+      <section className="detail-section" id="resultados">
+        <Card>
+          <CardHeader
+            title="Resultados e informe"
             description={latestMetric ? formatMonth(latestMetric.month, latestMetric.year) : "Sin mes"}
             action={
               <select
@@ -968,12 +1098,7 @@ export function ClientInternalDetail({
           <CardHeader
             title="Facturas"
             description="Cliente"
-            action={
-              <ButtonLink href="/admin/invoices" variant="secondary">
-                <ReceiptText size={16} />
-                Crear factura mensual
-              </ButtonLink>
-            }
+            action={<NewInvoiceForm client={client} />}
           />
           <div className="mt-5 list">
             {data.invoices.length ? (
@@ -1020,8 +1145,8 @@ export function ClientInternalDetail({
             <strong>{client.publicName}</strong>
             <span>{client.planName} · {client.planStatus}</span>
             <p>
-              El cliente ve dashboard, resultados, campañas, contenido, informes,
-              facturas, ranking y próximos pasos sin ver Leads/Radar.
+              El cliente ve resumen, resultados, contenido, calendario e informe
+              sin Leads, Radar ni información interna.
             </p>
           </div>
           <div className="toolbar mt-5 justify-start">
@@ -1055,40 +1180,27 @@ export function ClientInternalDetail({
 
       <section className="detail-section split" id="ajustes">
         <Card>
-          <CardHeader title="Ajustes del cliente" description="Portal y fiscal" />
-          <div className="mt-5 grid gap-3">
-            <SmallWorkflowStat
-              label="Datos fiscales"
-              value={client.taxId ? "Completos" : "Pendientes"}
-            />
-            <SmallWorkflowStat
-              label="Email facturación"
-              value={client.billingEmail ?? "Pendiente"}
-            />
-            <SmallWorkflowStat
-              label="Ranking público"
-              value={client.allowPublicLeaderboardName ? "Nombre visible" : "Anonimizado"}
-            />
-            <SmallWorkflowStat
-              label="Origen"
-              value={client.convertedFromLead ? "Convertido desde Leads" : "Stats"}
-            />
+          <CardHeader title="Ajustes del cliente" description="Portal, fiscal y plan" />
+          <div className="mt-5">
+            <ClientSettingsForm client={client} />
           </div>
         </Card>
         <Card>
-          <CardHeader
-            title="Client Score"
-            description="Firekworks Level interno"
-            action={<span className="badge badge-blue">{score?.levelName ?? "Nuevo"}</span>}
-          />
+          <CardHeader title="Drive y portal" description="Archivos del cliente" />
           <div className="mt-5 grid gap-4">
-            <strong className="metric-value">{score?.score ?? 0}</strong>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${score?.score ?? 0}%` }} />
-            </div>
-            <p className="m-0 text-sm text-[#6e6e73]">
-              {score?.action ?? "Cliente nuevo, requiere seguimiento."}
-            </p>
+            <SmallWorkflowStat
+              label="Carpeta Drive"
+              value={client.driveFolderId ?? "Pendiente"}
+            />
+            <SmallWorkflowStat
+              label="Portal"
+              value={client.isDemo ? `/demo/${client.slug}` : `/portal/${client.slug}`}
+            />
+            <SmallWorkflowStat
+              label="Nivel interno"
+              value={`${score?.levelName ?? "Nuevo"} · ${score?.score ?? 0}/100`}
+            />
+            <DriveAssetsPanel client={client} />
           </div>
         </Card>
       </section>
@@ -1126,18 +1238,92 @@ function CalendarEventRow({
   );
 }
 
-function FallbackRow({ title, text }: { title: string; text: string }) {
+export function CalendarBoard({
+  events,
+  clients,
+  content
+}: {
+  events: CalendarEvent[];
+  clients: Client[];
+  content: ContentItem[];
+}) {
+  const baseDate = events[0]?.startAt ? new Date(events[0].startAt) : new Date();
+  const year = baseDate.getFullYear();
+  const month = baseDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const leadingDays = (firstDay.getDay() + 6) % 7;
+  const cells = [
+    ...Array.from({ length: leadingDays }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1)
+  ];
+  const weekdays = ["L", "M", "X", "J", "V", "S", "D"];
+
   return (
-    <div className="list-item">
-      <span className="metric-icon bg-[rgba(0,113,227,0.1)] text-[#0071e3]">
-        <CheckCircle2 size={20} />
-      </span>
-      <div className="list-item-main">
-        <strong>{title}</strong>
-        <span>{text}</span>
+    <div className="calendar-board mt-5" id="mes">
+      <div className="calendar-board-head">
+        <strong>
+          {new Intl.DateTimeFormat("es-ES", {
+            month: "long",
+            year: "numeric"
+          }).format(firstDay)}
+        </strong>
+        <span>{events.length} eventos</span>
+      </div>
+      <div className="calendar-weekdays">
+        {weekdays.map((day) => (
+          <span key={day}>{day}</span>
+        ))}
+      </div>
+      <div className="calendar-month-grid">
+        {cells.map((day, index) => {
+          const dayEvents = day
+            ? events.filter((event) => {
+                const date = new Date(event.startAt);
+                return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day;
+              })
+            : [];
+
+          return (
+            <div className={day ? "calendar-day" : "calendar-day calendar-day-empty"} key={`${day ?? "empty"}-${index}`}>
+              {day ? <span className="calendar-day-number">{day}</span> : null}
+              {dayEvents.slice(0, 3).map((event) => {
+                const client = clients.find((item) => item.id === event.clientId);
+                const linkedContent = content.find((item) => item.id === event.contentItemId);
+
+                return (
+                  <div className={`calendar-pill ${calendarTypeClass(event.type)}`} key={event.id}>
+                    <strong>{event.title}</strong>
+                    <span>
+                      {formatTime(event.startAt)} · {client?.publicName ?? linkedContent?.contentCode ?? "Firekworks"}
+                    </span>
+                  </div>
+                );
+              })}
+              {dayEvents.length > 3 ? (
+                <span className="calendar-more">+{dayEvents.length - 3}</span>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <div className="calendar-week-strip" id="semana">
+        {events.slice(0, 7).map((event) => (
+          <CalendarEventRow clients={clients} content={content} event={event} key={event.id} />
+        ))}
       </div>
     </div>
   );
+}
+
+function calendarTypeClass(type: string) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes("grab")) return "calendar-pill-recording";
+  if (normalized.includes("edici")) return "calendar-pill-edit";
+  if (normalized.includes("revisi")) return "calendar-pill-review";
+  if (normalized.includes("public")) return "calendar-pill-publish";
+  if (normalized.includes("fact")) return "calendar-pill-invoice";
+  return "calendar-pill-default";
 }
 
 function SmallWorkflowStat({ label, value }: { label: string; value: string }) {

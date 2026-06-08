@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { canAccessClient, getRequestProfile } from "@/lib/api-auth";
 import { buildInvoicePdf } from "@/lib/pdf";
-import { getInvoicePdfInput } from "@/lib/pdf-data";
+import { getDemoInvoicePdfInput, getInvoicePdfInput } from "@/lib/pdf-data";
 
 export async function GET(
   _request: Request,
@@ -11,7 +11,21 @@ export async function GET(
   const profile = await getRequestProfile();
 
   if (!profile) {
-    return NextResponse.json({ error: "Sesion requerida" }, { status: 401 });
+    const demoInput = getDemoInvoicePdfInput(id);
+
+    if (!demoInput) {
+      return NextResponse.json({ error: "Sesion requerida" }, { status: 401 });
+    }
+
+    const pdf = await buildInvoicePdf(demoInput);
+    return new NextResponse(Buffer.from(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="FW-${slugFilePart(
+          demoInput.invoice.invoiceNumber.replace(/^FW[-_]?/i, "")
+        )}-${slugFilePart(demoInput.client.slug)}.pdf"`
+      }
+    });
   }
 
   const input = await getInvoicePdfInput(profile.admin, id);
@@ -44,7 +58,20 @@ export async function GET(
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${input.invoice.invoiceNumber}.pdf"`
+      "Content-Disposition": `attachment; filename="FW-${slugFilePart(
+        input.invoice.invoiceNumber.replace(/^FW[-_]?/i, "")
+      )}-${slugFilePart(input.client.slug)}.pdf"`
     }
   });
+}
+
+function slugFilePart(value: string) {
+  return (
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "factura"
+  );
 }

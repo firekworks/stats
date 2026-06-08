@@ -375,6 +375,7 @@ function mapClient(row: Row): Client {
     billingEmail: row.billing_email ?? null,
     billingAddress: row.billing_address ?? null,
     phone: row.phone ?? null,
+    contactName: row.commercial_contact_name ?? row.contact_name ?? null,
     website: row.website ?? null,
     industry: row.industry ?? row.sector ?? "",
     status:
@@ -391,6 +392,8 @@ function mapClient(row: Row): Client {
     objective: row.objective ?? null,
     services: Array.isArray(row.services) ? row.services : [],
     driveFolderId: row.drive_folder_id ?? null,
+    driveFolderUrl: row.drive_folder_url ?? null,
+    portalAccessToken: row.portal_access_token ?? null,
     convertedFromLead: Boolean(row.converted_from_lead),
     conversionDate: row.conversion_date ?? null,
     originalLeadScore:
@@ -403,7 +406,7 @@ function mapClient(row: Row): Client {
     allowPublicLeaderboardName: Boolean(
       row.allow_public_leaderboard_name ?? row.show_in_leaderboard
     ),
-    planName: plan?.name ?? "Plan activo",
+    planName: row.plan_name ?? plan?.name ?? "Plan activo",
     planStatus:
       row.status === "active" || row.status === "Activo"
         ? "Activo"
@@ -411,6 +414,7 @@ function mapClient(row: Row): Client {
           ? "Pausado"
           : "Baja",
     monthlyFee: Number(subscription?.monthly_fee ?? row.service_fee ?? 0),
+    adBudget: Number(row.monthly_budget ?? row.ad_budget ?? 0),
     onboardedAt: row.onboarded_at,
     publicLeaderboardName:
       row.public_leaderboard_name ?? row.name ?? "Cliente local"
@@ -540,6 +544,8 @@ function mapContent(row: Row, summary?: ContentMetricSummary): ContentItem {
     storagePath: row.storage_path,
     driveFolderId: row.drive_folder_id ?? null,
     googleDriveFolderId: row.google_drive_folder_id ?? null,
+    googleDriveFileId: row.google_drive_file_id ?? null,
+    driveFileUrl: row.drive_file_url ?? null,
     canvaDesignId: row.canva_design_id ?? null,
     canvaEditUrl: row.canva_edit_url ?? null,
     canvaViewUrl: row.canva_view_url ?? null,
@@ -549,6 +555,8 @@ function mapContent(row: Row, summary?: ContentMetricSummary): ContentItem {
     notes: row.notes ?? row.internal_notes ?? null,
     assignedTo: row.assigned_to ?? null,
     isDemo: Boolean(row.is_demo),
+    isPromoted: Boolean(row.is_promoted),
+    promotionBudget: Number(row.promotion_budget ?? 0),
     views: Number(summary?.views ?? row.views ?? 0),
     reach: Number(summary?.reach ?? row.reach ?? 0),
     impressions: Number(summary?.impressions ?? row.impressions ?? 0),

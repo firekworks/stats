@@ -15,7 +15,6 @@ export default async function ClientContentPage() {
         description="Reels, posts, carruseles, creatividades y aprendizajes de rendimiento."
       />
       <ContentWorkflowModule
-        campaigns={data.campaigns}
         clients={[data.selectedClient]}
         content={data.content}
       />

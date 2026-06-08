@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { buildMonthlyReportPdf } from "@/lib/pdf";
 import { canAccessClient, getRequestProfile } from "@/lib/api-auth";
-import { getMonthlyReportPdfInput } from "@/lib/pdf-data";
+import {
+  getDemoMonthlyReportPdfInput,
+  getMonthlyReportPdfInput
+} from "@/lib/pdf-data";
+import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -9,20 +13,47 @@ export async function GET(request: Request) {
   const month = Number(url.searchParams.get("month") || 0) || null;
   const year = Number(url.searchParams.get("year") || 0) || null;
   const profile = await getRequestProfile();
-
-  if (!profile) {
-    return NextResponse.json({ error: "Sesion requerida" }, { status: 401 });
-  }
+  const admin = profile?.admin ?? getSupabaseAdminClient();
 
   if (!clientId) {
     return NextResponse.json({ error: "clientId requerido" }, { status: 400 });
   }
 
-  if (!canAccessClient(profile, clientId)) {
+  if (!admin) {
+    const demoInput = getDemoMonthlyReportPdfInput(clientId, month, year);
+
+    if (!demoInput) {
+      return NextResponse.json({ error: "Sesion requerida" }, { status: 401 });
+    }
+
+    const pdf = await buildMonthlyReportPdf(demoInput);
+    const period = `${demoInput.metric.year}-${String(demoInput.metric.month).padStart(2, "0")}`;
+    return new NextResponse(Buffer.from(pdf), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="FW-${slugFilePart(
+          demoInput.client.publicName
+        )}-informe-${period}.pdf"`
+      }
+    });
+  }
+
+  if (!profile) {
+    const { data: demoClient } = await admin
+      .from("clients")
+      .select("id, is_demo")
+      .eq("id", clientId)
+      .eq("is_demo", true)
+      .maybeSingle();
+
+    if (!demoClient) {
+      return NextResponse.json({ error: "Sesion requerida" }, { status: 401 });
+    }
+  } else if (!canAccessClient(profile, clientId)) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
   }
 
-  const input = await getMonthlyReportPdfInput(profile.admin, clientId, month, year);
+  const input = await getMonthlyReportPdfInput(admin, clientId, month, year);
 
   if (!input) {
     return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
@@ -35,7 +66,7 @@ export async function GET(request: Request) {
     input.metric.month
   ).padStart(2, "0")}.pdf`;
 
-  if (!input.isDemoData) {
+  if (!input.isDemoData && profile) {
     await profile.admin.storage
       .from(process.env.SUPABASE_REPORTS_BUCKET ?? "stats-reports")
       .upload(storagePath, pdf, {

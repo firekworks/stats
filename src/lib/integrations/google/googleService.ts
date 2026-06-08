@@ -3,14 +3,22 @@ import "server-only";
 import { getMissingServerEnv, readServerEnv } from "@/lib/server/env";
 
 export const GOOGLE_BUSINESS_PROVIDER = "google_business";
+export const GOOGLE_WORKSPACE_PROVIDER = "google_workspace";
+export const GOOGLE_DRIVE_ROOT_FOLDER_ID = "1N_kZXpumv6UoGgvcZKNo2oAPuRCW6x81";
 
-const googleBusinessScopes = ["https://www.googleapis.com/auth/business.manage"];
+const googleBusinessScopes = [
+  "https://www.googleapis.com/auth/business.manage",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/drive.metadata.readonly",
+  "https://www.googleapis.com/auth/drive.readonly"
+];
 
 export function getGoogleMissingEnv() {
   return getMissingServerEnv([
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_REDIRECT_URI"
+    "GOOGLE_REDIRECT_URI",
+    "ENCRYPTION_KEY"
   ]);
 }
 
@@ -64,6 +72,10 @@ export async function exchangeGoogleCodeForToken(code: string) {
   }
 
   return body;
+}
+
+export function getGoogleDriveRootFolderId() {
+  return readServerEnv("GOOGLE_DRIVE_ROOT_FOLDER_ID") ?? GOOGLE_DRIVE_ROOT_FOLDER_ID;
 }
 
 function requiredGoogleEnv(name: string) {

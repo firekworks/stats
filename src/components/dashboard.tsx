@@ -1,7 +1,5 @@
 import {
-  AlertTriangle,
   ArrowRight,
-  CalendarPlus,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
@@ -591,6 +589,7 @@ function formatDateShort(value: string) {
 export function AdminDashboard({ data }: { data: PortalData }) {
   const realClients = data.clients.filter((client) => !client.isDemo);
   const now = new Date();
+  const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const nextEvents = data.calendarEvents
     .filter((event) => new Date(event.startAt).getTime() >= now.getTime())
     .sort(
@@ -600,6 +599,9 @@ export function AdminDashboard({ data }: { data: PortalData }) {
   const nextEvent = nextEvents[0];
   const pendingApprovals = data.content.filter(
     (item) => item.status === "pending_approval"
+  );
+  const productionPending = data.content.filter((item) =>
+    ["idea", "recorded", "editing", "pending_approval"].includes(item.status)
   );
   const invoicesToWatch = data.invoices
     .filter((invoice) => {
@@ -616,48 +618,72 @@ export function AdminDashboard({ data }: { data: PortalData }) {
   const priorityAlerts = data.alerts.filter((alert) =>
     ["critical", "warning"].includes(alert.severity)
   );
-  const clientsWithAlerts = realClients.filter((client) =>
-    priorityAlerts.some((alert) => alert.clientId === client.id)
+  const clientsNeedingAction = realClients.filter((client) =>
+    priorityAlerts.some((alert) => alert.clientId === client.id) ||
+    pendingApprovals.some((item) => item.clientId === client.id) ||
+    invoicesToWatch.some((invoice) => invoice.clientId === client.id)
   );
   const nextEventClient = nextEvent
     ? data.clients.find((client) => client.id === nextEvent.clientId)
     : null;
+  const nextDelivery = data.content
+    .filter((item) => ["scheduled", "pending_approval"].includes(item.status))
+    .sort(
+      (a, b) =>
+        new Date(a.publishDate).getTime() - new Date(b.publishDate).getTime()
+    )[0];
+  const nextInvoiceTotal = invoicesToWatch.reduce(
+    (sum, invoice) => sum + invoice.total,
+    0
+  );
+  const weekAgenda = nextEvents.filter(
+    (event) => new Date(event.startAt).getTime() <= weekEnd.getTime()
+  );
 
   return (
     <div className="grid">
       <section className="grid grid-4">
         <OperationalCard
           icon={CalendarClock}
-          label="Próximo evento importante"
-          title={nextEvent?.title ?? "Sin eventos próximos"}
+          label="Hoy"
+          title={nextEvent?.title ?? nextDelivery?.title ?? "Sin bloqueos"}
           text={
             nextEvent
               ? `${nextEventClient?.publicName ?? "Firekworks"} · ${formatDateShort(
                   nextEvent.startAt
                 )}`
-              : "Crea una revisión, publicación o reunión desde Calendario."
+              : nextDelivery
+                ? `Entrega próxima · ${nextDelivery.contentCode ?? nextDelivery.type}`
+                : "No hay entregas, eventos ni facturas urgentes."
           }
           tone="blue"
-          badge={nextEvent?.status ?? "pendiente"}
+          badge={nextEvent?.status ?? nextDelivery?.status ?? "ok"}
           href="/admin/calendar"
         />
         <OperationalCard
-          icon={FileBarChart}
-          label="Contenido pendiente de aprobar"
-          title={`${pendingApprovals.length} pieza${
-            pendingApprovals.length === 1 ? "" : "s"
-          }`}
-          text={pendingApprovals[0]?.title ?? "Nada bloqueado ahora mismo."}
+          icon={UserPlus}
+          label="Clientes activos"
+          title={String(realClients.filter((client) => client.status === "active").length)}
+          text="Cartera real gestionada en Stats."
           tone="mint"
-          badge={pendingApprovals.length ? "revisar" : "al dia"}
+          badge={`${realClients.length} reales`}
           href="/admin/clients"
         />
         <OperationalCard
-          icon={ReceiptText}
-          label="Facturas vencidas o próximas"
-          title={`${invoicesToWatch.length} factura${
-            invoicesToWatch.length === 1 ? "" : "s"
+          icon={FileBarChart}
+          label="Pendiente de producir"
+          title={`${productionPending.length} pieza${
+            productionPending.length === 1 ? "" : "s"
           }`}
+          text={productionPending[0]?.title ?? "Producción al día."}
+          tone="orange"
+          badge={pendingApprovals.length ? `${pendingApprovals.length} revisar` : "sin bloqueo"}
+          href="/admin/calendar"
+        />
+        <OperationalCard
+          icon={ReceiptText}
+          label="Cobros próximos"
+          title={invoicesToWatch.length ? formatCurrency(nextInvoiceTotal) : "0 €"}
           text={
             invoicesToWatch[0]
               ? `${invoicesToWatch[0].invoiceNumber} · vence ${formatDateShort(
@@ -665,101 +691,27 @@ export function AdminDashboard({ data }: { data: PortalData }) {
                 )}`
               : "No hay cobros urgentes en los próximos 14 días."
           }
-          tone="orange"
+          tone="red"
           badge={invoicesToWatch[0]?.status ?? "ok"}
           href="/admin/clients"
         />
-        <OperationalCard
-          icon={AlertTriangle}
-          label="Clientes con alerta"
-          title={`${clientsWithAlerts.length} cliente${
-            clientsWithAlerts.length === 1 ? "" : "s"
-          }`}
-          text={
-            priorityAlerts[0]
-              ? `${priorityAlerts[0].title} · ${
-                  data.clients.find(
-                    (client) => client.id === priorityAlerts[0].clientId
-                  )?.publicName ?? "Cliente"
-                }`
-              : "Sin señales críticas ni avisos internos prioritarios."
-          }
-          tone="red"
-          badge={priorityAlerts[0]?.severity ?? "estable"}
-          href="/admin/clients"
-        />
-      </section>
-
-      <section className="split">
-        <Card className="ops-quick-panel">
-          <CardHeader title="Acciones rápidas" description="Operativa" />
-          <div className="mt-5 toolbar justify-start">
-            <ButtonLink href="/admin/clients" variant="secondary">
-              <UserPlus size={16} />
-              Nuevo cliente
-            </ButtonLink>
-            <ButtonLink href="/admin/calendar" variant="secondary">
-              <CalendarPlus size={16} />
-              Crear evento
-            </ButtonLink>
-            <ButtonLink href="/admin/demos">
-              <Sparkles size={16} />
-              Ver demos
-            </ButtonLink>
-          </div>
-          <p className="ops-helper">
-            Stats queda centrado en clientes: cada ficha reúne campaña del mes,
-            calendario, métricas, informes, facturas y ajustes del portal.
-          </p>
-        </Card>
-
-        <Card>
-          <CardHeader title="Clientes que requieren atención" description="Hoy" />
-          <div className="mt-5 list">
-            {priorityAlerts.length ? (
-              priorityAlerts.slice(0, 5).map((alert) => {
-                const client = data.clients.find(
-                  (item) => item.id === alert.clientId
-                );
-
-                return (
-                  <div className="list-item" key={alert.id}>
-                    <div className="list-item-main">
-                      <strong>{alert.title}</strong>
-                      <span>{client?.publicName ?? "Cliente"}</span>
-                    </div>
-                    <span
-                      className={`badge ${
-                        alert.severity === "warning"
-                          ? "badge-orange"
-                          : alert.severity === "critical"
-                            ? "badge-red"
-                            : alert.severity === "success"
-                              ? "badge-green"
-                              : "badge-blue"
-                      }`}
-                    >
-                      {alert.severity}
-                    </span>
-                  </div>
-                );
-              })
-            ) : (
-              <DashboardEmpty
-                title="Sin alertas prioritarias"
-                text="Las incidencias de respuesta, cobro, accesos o métricas aparecerán aquí."
-              />
-            )}
-          </div>
-        </Card>
       </section>
 
       <section className="grid grid-2">
         <Card>
-          <CardHeader title="Agenda inmediata" description="Próximos eventos" />
+          <CardHeader
+            title="Agenda de la semana"
+            description="Próximos 5"
+            action={
+              <ButtonLink href="/admin/calendar" variant="ghost">
+                Ver calendario
+                <ArrowRight size={15} />
+              </ButtonLink>
+            }
+          />
           <div className="mt-5 list">
-            {nextEvents.length ? (
-              nextEvents.slice(0, 5).map((event) => {
+            {weekAgenda.length ? (
+              weekAgenda.slice(0, 5).map((event) => {
                 const client = data.clients.find((item) => item.id === event.clientId);
 
                 return (
@@ -775,55 +727,39 @@ export function AdminDashboard({ data }: { data: PortalData }) {
                 );
               })
             ) : (
-              <DashboardEmpty
-                title="Agenda limpia"
-                text="Añade próximos hitos de cliente desde el calendario."
-              />
+              <DashboardEmpty title="Semana limpia" text="No hay eventos próximos." />
             )}
           </div>
         </Card>
 
-        <Card>
-          <CardHeader title="Aprobaciones y cobros" description="Bloqueos reales" />
-          <div className="mt-5 list">
-            {pendingApprovals.slice(0, 3).map((item) => {
-              const client = data.clients.find((entry) => entry.id === item.clientId);
+        {clientsNeedingAction.length ? (
+          <Card>
+            <CardHeader title="Clientes que requieren acción" description="Solo señales reales" />
+            <div className="mt-5 list">
+              {clientsNeedingAction.slice(0, 5).map((client) => {
+                const alert = priorityAlerts.find((item) => item.clientId === client.id);
+                const approval = pendingApprovals.find((item) => item.clientId === client.id);
+                const invoice = invoicesToWatch.find((item) => item.clientId === client.id);
+                const reason =
+                  alert?.title ??
+                  approval?.title ??
+                  (invoice ? `${invoice.invoiceNumber} · ${formatCurrency(invoice.total)}` : "Revisar");
 
-              return (
-                <div className="list-item" key={item.id}>
-                  <div className="list-item-main">
-                    <strong>{item.title}</strong>
-                    <span>{client?.publicName ?? "Cliente"} · pendiente de aprobar</span>
+                return (
+                  <div className="list-item" key={client.id}>
+                    <div className="list-item-main">
+                      <strong>{client.publicName}</strong>
+                      <span>{reason}</span>
+                    </div>
+                    <ButtonLink href={`/admin/clients/${client.id}`} variant="ghost">
+                      Abrir
+                    </ButtonLink>
                   </div>
-                  <StatusBadge status={item.status} />
-                </div>
-              );
-            })}
-            {invoicesToWatch.slice(0, 3).map((invoice) => {
-              const client = data.clients.find(
-                (entry) => entry.id === invoice.clientId
-              );
-
-              return (
-                <div className="list-item" key={invoice.id}>
-                  <div className="list-item-main">
-                    <strong>{invoice.invoiceNumber}</strong>
-                    <span>
-                      {client?.publicName ?? "Cliente"} · {formatCurrency(invoice.total)}
-                    </span>
-                  </div>
-                  <StatusBadge status={invoice.status} />
-                </div>
-              );
-            })}
-            {!pendingApprovals.length && !invoicesToWatch.length ? (
-              <DashboardEmpty
-                title="Sin bloqueos"
-                text="No hay aprobaciones pendientes ni facturas urgentes."
-              />
-            ) : null}
-          </div>
-        </Card>
+                );
+              })}
+            </div>
+          </Card>
+        ) : null}
       </section>
     </div>
   );

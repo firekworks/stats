@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { IntegrationAssetSelector } from "@/components/integration-asset-selector";
 import { IntegrationActionButton } from "@/components/integration-action-button";
+import { NewClientForm } from "@/components/admin-forms";
 import { ButtonLink, Card, CardHeader, StatusBadge } from "@/components/ui";
 import { PdfDownloadButton } from "@/components/pdf-download-button";
 import {
@@ -519,12 +520,32 @@ export function IntegrationsModule({
               ready
             />
             <ConnectorStatus
-              title="Google Business Profile"
-              text="OAuth preparado; sincronizacion pendiente de mapear locations reales."
+              title="Google Calendar"
+              text="OAuth preparado con calendar.events y sincronización desde eventos."
+              ready
+            />
+            <ConnectorStatus
+              title="Google Drive"
+              text="Carpeta raíz COMERCIOS y lectura de archivos por carpeta de cliente."
+              ready
+            />
+            <ConnectorStatus
+              title="Canva"
+              text="Enlaces manuales por pieza; campo listo para conectar API cuando proceda."
             />
             <ConnectorStatus
               title="WhatsApp Cloud API"
               text="Webhooks y activos preparados; metricas solo con eventos reales."
+            />
+            <ConnectorStatus
+              title="PDF"
+              text="Informes y facturas descargan application/pdf desde endpoints seguros."
+              ready
+            />
+            <ConnectorStatus
+              title="Supabase"
+              text="Auth, RLS, Storage y Postgres como fuente operativa."
+              ready
             />
           </div>
         </Card>
@@ -613,8 +634,8 @@ function IntegrationClientCard({
           integration={google}
           assets={assets.filter((asset) => asset.provider === "google_business")}
           provider="google_business"
-          title="Google Business"
-          text="Locations, llamadas, clics y reseñas"
+          title="Google Calendar / Drive"
+          text="Calendario, Drive y Business Profile"
         />
         <IntegrationProviderRow
           clientId={client.id}
@@ -802,20 +823,27 @@ export function ClientsModule({ data }: { data: PortalData }) {
     <Card className="client-list-card">
       <CardHeader
         title="Clientes"
-        description="Hub principal"
-        action={<span className="badge badge-blue">{data.clients.length} fichas</span>}
+        description="Cartera operativa"
+        action={<NewClientForm />}
       />
+      <div className="client-toolbar mt-5">
+        <label className="field client-search">
+          <span>Buscar</span>
+          <input placeholder="Nombre, ciudad o sector" type="search" />
+        </label>
+        <div className="filter-chips" aria-label="Filtros rápidos">
+          <span>Activo</span>
+          <span>Demo</span>
+          <span>Pendiente</span>
+          <span>Pausado</span>
+        </div>
+      </div>
       <div className="client-list mt-5">
         {data.clients.map((client) => {
           const metric = data.metrics.find((item) => item.clientId === client.id);
           const task = nextClientTask(data.tasks, client.id);
           const event = nextClientEvent(data.calendarEvents, client.id);
           const invoice = latestClientInvoice(data.invoices, client.id);
-          const milestone = task
-            ? task.title
-            : event
-              ? event.title
-              : "Definir siguiente hito";
           const result = metric
             ? `${formatNumber(metric.leads)} leads · ${formatNumber(
                 metric.reach
@@ -839,14 +867,14 @@ export function ClientsModule({ data }: { data: PortalData }) {
                 <span>{formatCurrency(client.monthlyFee)}/mes</span>
               </div>
               <div className="client-summary">
-                <span className="metric-label">Próximo hito</span>
-                <strong>{milestone}</strong>
+                <span className="metric-label">Próximo evento</span>
+                <strong>{event?.title ?? task?.title ?? "Sin evento"}</strong>
                 <span>
-                  {task?.dueDate
-                    ? `Fecha objetivo: ${task.dueDate}`
-                    : event?.startAt
+                  {event?.startAt
                       ? `Evento: ${formatDateShort(event.startAt)}`
-                      : "Pendiente de planificar"}
+                      : task?.dueDate
+                        ? `Acción: ${task.dueDate}`
+                        : "Pendiente de planificar"}
                 </span>
               </div>
               <div className="client-summary">

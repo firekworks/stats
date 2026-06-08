@@ -1,4 +1,5 @@
-import { getBillingSettings } from "@/lib/billing-settings";
+import { defaultBillingSettings, getBillingSettings } from "@/lib/billing-settings";
+import { getAllDemoData, getDemoPortalData } from "@/lib/demo-data";
 import type { InvoicePdfInput, MonthlyReportPdfInput } from "@/lib/pdf";
 import type { Campaign, Client, ContentItem, Invoice, MonthlyMetric } from "@/lib/types";
 import type { getSupabaseAdminClient } from "@/lib/supabase/server";
@@ -70,7 +71,39 @@ export async function getMonthlyReportPdfInput(
     client: mapClient(clientRow),
     metric,
     campaigns: (campaignRows ?? []).map(mapCampaign),
-    content: (contentRows ?? []).map(mapContent)
+    content: (contentRows ?? []).map(mapContent),
+    isDemoData: Boolean(clientRow.is_demo)
+  };
+}
+
+export function getDemoMonthlyReportPdfInput(
+  clientId: string,
+  month?: number | null,
+  year?: number | null
+): MonthlyReportPdfInput | null {
+  const allData = getAllDemoData();
+  const client = allData.clients.find((item) => item.id === clientId);
+
+  if (!client?.isDemo) {
+    return null;
+  }
+
+  const data = getDemoPortalData(clientId);
+  const metric =
+    data.metrics.find((item) => item.month === month && item.year === year) ??
+    data.metrics[0];
+
+  if (!metric) {
+    return null;
+  }
+
+  return {
+    billing: defaultBillingSettings,
+    client: data.selectedClient,
+    metric,
+    campaigns: data.campaigns,
+    content: data.content,
+    isDemoData: true
   };
 }
 
@@ -101,7 +134,27 @@ export async function getInvoicePdfInput(
   return {
     billing: settings,
     client: mapClient(clientRow),
-    invoice: mapInvoice(invoiceRow)
+    invoice: mapInvoice(invoiceRow),
+    isDemoData: Boolean(clientRow.is_demo)
+  };
+}
+
+export function getDemoInvoicePdfInput(invoiceId: string): InvoicePdfInput | null {
+  const data = getAllDemoData();
+  const invoice = data.invoices.find((item) => item.id === invoiceId);
+  const client = invoice
+    ? data.clients.find((item) => item.id === invoice.clientId)
+    : null;
+
+  if (!invoice || !client?.isDemo) {
+    return null;
+  }
+
+  return {
+    billing: defaultBillingSettings,
+    client,
+    invoice,
+    isDemoData: true
   };
 }
 
@@ -124,6 +177,7 @@ function mapClient(row: Row): Client & {
     billingEmail: stringOrNull(row.billing_email),
     billingAddress: stringOrNull(row.billing_address),
     phone: stringOrNull(row.phone),
+    contactName: stringOrNull(row.commercial_contact_name),
     website: stringOrNull(row.website),
     industry: String(row.industry ?? row.sector ?? ""),
     status:
@@ -141,6 +195,7 @@ function mapClient(row: Row): Client & {
     planStatus:
       status === "Baja" ? "Baja" : status === "Pausado" ? "Pausado" : "Activo",
     monthlyFee: number(row.monthly_fee ?? row.service_fee),
+    adBudget: number(row.monthly_budget),
     onboardedAt: String(row.onboarded_at ?? row.created_at ?? ""),
     publicLeaderboardName: String(
       row.public_leaderboard_name ?? publicName
