@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import type { ContentIdea } from "@/lib/types";
 
 export function ContentIdeaGenerator({
@@ -12,6 +12,7 @@ export function ContentIdeaGenerator({
   clientName: string;
 }) {
   const [ideas, setIdeas] = useState<ContentIdea[]>([]);
+  const [approved, setApproved] = useState<Record<string, boolean>>({});
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
     "idle"
   );
@@ -63,18 +64,57 @@ export function ContentIdeaGenerator({
         </div>
       ) : null}
       {ideas.length ? (
-        <div className="list">
+        <div className="strategy-ideas">
           <span className="metric-label">Ideas para {clientName}</span>
           {ideas.map((idea) => (
-            <div className="list-item" key={`${idea.title}-${idea.cta}`}>
-              <div className="list-item-main">
-                <strong>{idea.title}</strong>
+            <details
+              className="strategy-idea"
+              key={`${idea.title}-${idea.cta}`}
+              open={approved[idea.title]}
+            >
+              <summary>
                 <span>
-                  {idea.format} · {idea.funnelStage} · {idea.cta}
+                  <strong>{idea.title}</strong>
+                  <small>
+                    {idea.format} · {idea.funnelStage} · {idea.cta}
+                  </small>
                 </span>
+                <span
+                  className={approved[idea.title] ? "badge badge-green" : "badge badge-blue"}
+                >
+                  {approved[idea.title] ? "Aprobada" : idea.objective}
+                </span>
+              </summary>
+              <div className="strategy-idea-body">
+                <label className="field">
+                  <span>Copy base editable</span>
+                  <textarea defaultValue={idea.copyBase} rows={3} />
+                </label>
+                <div className="strategy-grid">
+                  <div className="small-stat">
+                    <span className="metric-label">Visual</span>
+                    <strong>{idea.visualBrief}</strong>
+                  </div>
+                  <div className="small-stat">
+                    <span className="metric-label">Por qué</span>
+                    <strong>{idea.strategicReason}</strong>
+                  </div>
+                </div>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() =>
+                    setApproved((current) => ({
+                      ...current,
+                      [idea.title]: !current[idea.title]
+                    }))
+                  }
+                >
+                  <CheckCircle2 size={16} />
+                  {approved[idea.title] ? "Quitar aprobación" : "Aprobar bloque"}
+                </button>
               </div>
-              <span className="badge badge-blue">{idea.objective}</span>
-            </div>
+            </details>
           ))}
         </div>
       ) : null}

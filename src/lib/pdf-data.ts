@@ -111,12 +111,13 @@ function mapClient(row: Row): Client & {
   billingAddress?: string | null;
 } {
   const status = String(row.status ?? "Activo");
+  const publicName = String(row.public_name ?? row.name ?? "Cliente");
 
   return {
     id: String(row.id),
     slug: String(row.slug ?? row.id),
-    publicName: String(row.name ?? "Cliente"),
-    legalName: String(row.legal_name ?? row.billing_name ?? row.name ?? "Cliente"),
+    publicName,
+    legalName: String(row.legal_name ?? row.billing_name ?? publicName),
     leadId: stringOrNull(row.lead_id),
     source: stringOrNull(row.source),
     taxId: stringOrNull(row.tax_id),
@@ -124,7 +125,7 @@ function mapClient(row: Row): Client & {
     billingAddress: stringOrNull(row.billing_address),
     phone: stringOrNull(row.phone),
     website: stringOrNull(row.website),
-    industry: String(row.sector ?? row.industry ?? ""),
+    industry: String(row.industry ?? row.sector ?? ""),
     status:
       status === "Baja" || status === "churned"
         ? "churned"
@@ -133,13 +134,17 @@ function mapClient(row: Row): Client & {
           : "active",
     city: String(row.city ?? ""),
     averageTicket: number(row.average_ticket),
-    allowPublicLeaderboardName: Boolean(row.show_in_leaderboard),
-    planName: "Plan activo",
+    allowPublicLeaderboardName: Boolean(
+      row.allow_public_leaderboard_name ?? row.show_in_leaderboard
+    ),
+    planName: String(row.plan_name ?? "Plan activo"),
     planStatus:
       status === "Baja" ? "Baja" : status === "Pausado" ? "Pausado" : "Activo",
-    monthlyFee: number(row.service_fee),
-    onboardedAt: String(row.created_at ?? ""),
-    publicLeaderboardName: String(row.public_leaderboard_name ?? row.name ?? "Cliente")
+    monthlyFee: number(row.monthly_fee ?? row.service_fee),
+    onboardedAt: String(row.onboarded_at ?? row.created_at ?? ""),
+    publicLeaderboardName: String(
+      row.public_leaderboard_name ?? publicName
+    )
   };
 }
 

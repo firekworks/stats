@@ -10,7 +10,7 @@ export default async function AdminClientsPage() {
       <PageHeader
         eyebrow="Clientes"
         title="Cartera de clientes"
-        description="Clientes, planes, estado, nivel de colaboracion y rendimiento reciente."
+        description="El hub principal: estado, próximo hito, resultado clave, informe, factura y portal."
       />
       <ClientsModule data={data} />
     </>

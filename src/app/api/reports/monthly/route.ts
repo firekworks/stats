@@ -29,6 +29,8 @@ export async function GET(request: Request) {
   }
 
   const pdf = await buildMonthlyReportPdf(input);
+  const period = `${input.metric.year}-${String(input.metric.month).padStart(2, "0")}`;
+  const filename = `FW-${slugFilePart(input.client.publicName)}-informe-${period}.pdf`;
   const storagePath = `${clientId}/reports/${input.metric.year}-${String(
     input.metric.month
   ).padStart(2, "0")}.pdf`;
@@ -58,7 +60,18 @@ export async function GET(request: Request) {
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="firekworks-stats-informe-${input.metric.year}-${String(input.metric.month).padStart(2, "0")}.pdf"`
+      "Content-Disposition": `attachment; filename="${filename}"`
     }
   });
+}
+
+function slugFilePart(value: string) {
+  return (
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "cliente"
+  );
 }

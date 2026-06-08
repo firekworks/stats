@@ -799,52 +799,122 @@ function formatDateShort(value: string) {
 
 export function ClientsModule({ data }: { data: PortalData }) {
   return (
-    <section className="grid grid-3">
-      {data.clients.map((client) => {
-        const metric = data.metrics.find((item) => item.clientId === client.id);
-        const score = data.scores.find((item) => item.clientId === client.id);
+    <Card className="client-list-card">
+      <CardHeader
+        title="Clientes"
+        description="Hub principal"
+        action={<span className="badge badge-blue">{data.clients.length} fichas</span>}
+      />
+      <div className="client-list mt-5">
+        {data.clients.map((client) => {
+          const metric = data.metrics.find((item) => item.clientId === client.id);
+          const task = nextClientTask(data.tasks, client.id);
+          const event = nextClientEvent(data.calendarEvents, client.id);
+          const invoice = latestClientInvoice(data.invoices, client.id);
+          const milestone = task
+            ? task.title
+            : event
+              ? event.title
+              : "Definir siguiente hito";
+          const result = metric
+            ? `${formatNumber(metric.leads)} leads · ${formatNumber(
+                metric.reach
+              )} alcance`
+            : "Sin métrica mensual";
 
-        return (
-          <Card key={client.id}>
-            <CardHeader
-              title={client.publicName}
-              description={`${client.industry} · ${client.city}`}
-              action={<StatusBadge status={client.status} />}
-            />
-            <div className="mt-5 grid gap-4">
-              <SmallStat label="Plan" value={client.planName} />
-              <SmallStat
-                label="Fee mensual"
-                value={formatCurrency(client.monthlyFee)}
-              />
-              <SmallStat
-                label="Leads mes"
-                value={formatNumber(metric?.leads ?? 0)}
-              />
-              <SmallStat label="Level" value={score?.levelName ?? "Nuevo"} />
-              <SmallStat
-                label="Origen"
-                value={
-                  client.leadId || client.source === "lead"
-                    ? "Conectado a Leads"
-                    : "Manual"
-                }
-              />
-              <SmallStat label="NIF/CIF" value={client.taxId || "Pendiente"} />
-              <SmallStat
-                label="Email facturacion"
-                value={client.billingEmail || "Pendiente"}
-              />
-              <ButtonLink href={`/admin/clients/${client.id}`} variant="secondary">
-                <ExternalLink size={16} />
-                Abrir ficha
-              </ButtonLink>
+          return (
+            <div className="client-row" key={client.id}>
+              <div className="client-name-cell">
+                <strong>{client.publicName}</strong>
+                <span>
+                  {client.industry} · {client.city} · {client.planName}
+                </span>
+              </div>
+              <div className="client-status-cell">
+                {client.isDemo ? (
+                  <span className="badge badge-blue">Demo</span>
+                ) : (
+                  <StatusBadge status={client.status} />
+                )}
+                <span>{formatCurrency(client.monthlyFee)}/mes</span>
+              </div>
+              <div className="client-summary">
+                <span className="metric-label">Próximo hito</span>
+                <strong>{milestone}</strong>
+                <span>
+                  {task?.dueDate
+                    ? `Fecha objetivo: ${task.dueDate}`
+                    : event?.startAt
+                      ? `Evento: ${formatDateShort(event.startAt)}`
+                      : "Pendiente de planificar"}
+                </span>
+              </div>
+              <div className="client-summary">
+                <span className="metric-label">Último resultado clave</span>
+                <strong>{result}</strong>
+                <span>
+                  {invoice
+                    ? `${invoice.invoiceNumber} · ${statusLabel(invoice.status)}`
+                    : "Sin factura reciente"}
+                </span>
+              </div>
+              <div className="client-row-actions">
+                <ButtonLink href={`/admin/clients/${client.id}`} variant="secondary">
+                  <ExternalLink size={16} />
+                  Abrir
+                </ButtonLink>
+                <ButtonLink
+                  href={client.isDemo ? `/demo/${client.slug}` : `/admin/clients/${client.id}#portal`}
+                  variant="ghost"
+                >
+                  Portal
+                </ButtonLink>
+                <PdfDownloadButton
+                  href={`/api/admin/reports/monthly/pdf?clientId=${client.id}`}
+                  label="Informe"
+                  variant="secondary"
+                />
+                <ButtonLink href={`/admin/clients/${client.id}#facturas`} variant="ghost">
+                  Factura
+                </ButtonLink>
+              </div>
             </div>
-          </Card>
-        );
-      })}
-    </section>
+          );
+        })}
+      </div>
+    </Card>
   );
+}
+
+function nextClientTask(tasks: Task[], clientId: string) {
+  return tasks
+    .filter((task) => task.clientId === clientId && task.status !== "done")
+    .sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    )[0];
+}
+
+function nextClientEvent(events: PortalData["calendarEvents"], clientId: string) {
+  const now = new Date().getTime();
+
+  return events
+    .filter(
+      (event) =>
+        event.clientId === clientId && new Date(event.startAt).getTime() >= now
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+    )[0];
+}
+
+function latestClientInvoice(invoices: Invoice[], clientId: string) {
+  return invoices
+    .filter((invoice) => invoice.clientId === clientId)
+    .sort(
+      (a, b) =>
+        new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
+    )[0];
 }
 
 function SmallStat({ label, value }: { label: string; value: string }) {

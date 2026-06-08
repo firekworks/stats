@@ -20,15 +20,7 @@ const adminLinks: PortalNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "dashboard" },
   { href: "/admin/clients", label: "Clientes", icon: "clients" },
   { href: "/admin/demos", label: "Demos", icon: "demos" },
-  { href: "/admin/client-access", label: "Accesos", icon: "access" },
   { href: "/admin/calendar", label: "Calendario", icon: "calendar" },
-  { href: "/admin/campaigns", label: "Campañas", icon: "campaigns" },
-  { href: "/admin/content", label: "Contenido", icon: "content" },
-  { href: "/admin/metrics", label: "Métricas", icon: "results" },
-  { href: "/admin/reports", label: "Informes", icon: "reports" },
-  { href: "/admin/invoices", label: "Facturas", icon: "invoices" },
-  { href: "/admin/leaderboards", label: "Leaderboards", icon: "ranking" },
-  { href: "/admin/client-score", label: "Client Score", icon: "score" },
   { href: "/admin/integrations", label: "Integraciones", icon: "integrations" },
   { href: "/admin/settings", label: "Ajustes", icon: "settings" }
 ];

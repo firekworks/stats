@@ -28,7 +28,7 @@ export default async function AdminClientDetailPage({
       <PageHeader
         eyebrow="Cliente"
         title={client.publicName}
-        description="Ficha interna con metricas, campanas, contenido e informes."
+        description="Ficha interna con resumen, campaña del mes, calendario, métricas, informes, facturas, portal y ajustes."
       />
       <ClientInternalDetail data={clientData} />
     </>

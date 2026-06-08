@@ -1,31 +1,36 @@
 import {
+  AlertTriangle,
   CalendarDays,
   CheckCircle2,
   Clock3,
+  CreditCard,
   ExternalLink,
   FileBarChart,
+  FileText,
   FolderKanban,
   LayoutGrid,
   Link2,
   Megaphone,
   Palette,
+  ReceiptText,
   Route,
+  Settings,
   Sparkles,
+  Target,
   WandSparkles
 } from "lucide-react";
 import { CalendarEventForm } from "@/components/calendar-event-form";
 import { ContentIdeaGenerator } from "@/components/content-idea-generator";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { IntegrationActionButton } from "@/components/integration-action-button";
-import {
-  CampaignsModule,
-  MetricsModule,
-  ReportsModule
-} from "@/components/modules";
+import { CampaignsModule } from "@/components/modules";
+import { PdfDownloadButton } from "@/components/pdf-download-button";
 import { ButtonLink, Card, CardHeader, MetricCard, StatusBadge } from "@/components/ui";
 import {
   formatCompactNumber,
   formatCurrency,
+  formatDecimal,
+  formatMonth,
   formatNumber,
   formatPercent,
   statusLabel
@@ -572,14 +577,45 @@ export function ClientInternalDetail({
   const clientEvents = data.calendarEvents.filter(
     (event) => event.clientId === client.id
   );
+  const latestMetric = data.metrics[0];
+  const currentCampaign =
+    data.campaigns.find((campaign) =>
+      ["active", "learning"].includes(campaign.status)
+    ) ?? data.campaigns[0];
+  const nextTask = data.tasks
+    .filter((task) => task.status !== "done")
+    .sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    )[0];
+  const nextEvent = clientEvents
+    .filter((event) => new Date(event.startAt).getTime() >= new Date().getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+    )[0];
+  const lastDelivery =
+    data.content
+      .filter((item) => item.status === "published")
+      .sort(
+        (a, b) =>
+          new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()
+      )[0] ?? data.content[0];
+  const activeAlerts = data.alerts.filter((alert) =>
+    ["critical", "warning"].includes(alert.severity)
+  );
+  const connectedIntegrations = data.integrations.filter(
+    (integration) =>
+      integration.clientId === client.id && integration.status === "connected"
+  );
+  const portalHref = client.isDemo ? `/demo/${client.slug}` : "/client";
 
   return (
     <div className="grid">
       <section className="grid grid-4">
         <MetricCard
-          icon={FileBarChart}
-          label="Fee mensual"
-          value={formatCurrency(client.monthlyFee)}
+          icon={CheckCircle2}
+          label="Estado"
+          value={client.isDemo ? "Demo" : statusLabel(client.status)}
           helper={client.planName}
           tone="blue"
         />
@@ -591,100 +627,470 @@ export function ClientInternalDetail({
           tone="mint"
         />
         <MetricCard
-          icon={Megaphone}
-          label="Campañas"
-          value={String(data.campaigns.length)}
-          helper="Activas y planificadas"
+          icon={Target}
+          label="Siguiente tarea"
+          value={nextTask ? "Activa" : "Sin tarea"}
+          helper={nextTask?.title ?? "Define un hito operativo"}
           tone="green"
         />
         <MetricCard
           icon={CalendarDays}
-          label="Calendario"
-          value={String(clientEvents.length)}
-          helper="Eventos del cliente"
+          label="Próximo hito"
+          value={nextEvent ? formatDate(nextEvent.startAt) : "Sin fecha"}
+          helper={nextEvent?.title ?? "Añade un evento"}
           tone="orange"
         />
       </section>
 
-      <nav className="settings-tabs">
+      <nav className="detail-tabs">
         <a href="#resumen">Resumen</a>
-        <a href="#metricas">Métricas</a>
-        <a href="#contenido">Contenido</a>
-        <a href="#campanas">Campañas</a>
+        <a href="#campana">Campaña del mes</a>
         <a href="#calendario">Calendario</a>
+        <a href="#metricas">Métricas e informe</a>
+        <a href="#facturas">Facturas</a>
         <a href="#portal">Portal</a>
+        <a href="#ajustes">Ajustes</a>
       </nav>
 
-      <section className="split" id="resumen">
+      <section className="detail-section split" id="resumen">
         <Card>
           <CardHeader
-            title="Perfil del cliente"
+            title="Resumen operativo"
             description={`${client.industry} · ${client.city}`}
             action={<StatusBadge status={client.status} />}
           />
           <div className="mt-5 grid gap-3">
-            <SmallWorkflowStat label="Objetivo" value={client.objective ?? "Sin objetivo"} />
+            <SmallWorkflowStat label="Plan" value={client.planName} />
             <SmallWorkflowStat
-              label="Audiencia"
-              value={client.targetAudience ?? "Sin audiencia"}
+              label="Próxima acción"
+              value={nextTask?.title ?? nextEvent?.title ?? "Definir siguiente paso"}
             />
             <SmallWorkflowStat
-              label="Origen"
-              value={client.convertedFromLead ? "Convertido desde Leads" : "Stats"}
+              label="Última entrega"
+              value={lastDelivery?.title ?? "Sin contenido entregado"}
             />
             <SmallWorkflowStat
-              label="Fiscal"
-              value={client.taxId ? "Datos fiscales completos" : "Pendiente asesoría"}
+              label="Último resultado"
+              value={
+                latestMetric
+                  ? `${formatNumber(latestMetric.leads)} leads · ${formatCompactNumber(
+                      latestMetric.reach
+                    )} alcance`
+                  : "Sin métrica mensual"
+              }
             />
           </div>
         </Card>
         <Card>
-          <CardHeader title="Servicios" description="Scope activo" />
-          <div className="mt-5 toolbar justify-start">
-            {(client.services ?? []).length ? (
-              client.services?.map((service) => (
-                <span className="badge badge-blue" key={service}>
-                  {service}
-                </span>
+          <CardHeader title="Alertas y accesos" description="Control interno" />
+          <div className="mt-5 list">
+            {activeAlerts.length ? (
+              activeAlerts.map((alert) => (
+                <div className="list-item" key={alert.id}>
+                  <AlertTriangle size={21} />
+                  <div className="list-item-main">
+                    <strong>{alert.title}</strong>
+                    <span>{statusLabel(alert.severity)}</span>
+                  </div>
+                  <span
+                    className={`badge ${
+                      alert.severity === "critical" ? "badge-red" : "badge-orange"
+                    }`}
+                  >
+                    {alert.severity}
+                  </span>
+                </div>
               ))
             ) : (
-              <span className="badge badge-gray">Sin servicios configurados</span>
+              <div className="list-item">
+                <CheckCircle2 size={21} />
+                <div className="list-item-main">
+                  <strong>Sin alertas críticas</strong>
+                  <span>Cliente listo para producción normal.</span>
+                </div>
+                <span className="badge badge-green">ok</span>
+              </div>
+            )}
+            <div className="list-item">
+              <Settings size={21} />
+              <div className="list-item-main">
+                <strong>{connectedIntegrations.length} integraciones conectadas</strong>
+                <span>Meta, GBP y WhatsApp se gestionan desde Integraciones.</span>
+              </div>
+              <ButtonLink href="/admin/integrations" variant="ghost">
+                Abrir
+              </ButtonLink>
+            </div>
+          </div>
+        </Card>
+      </section>
+
+      <section className="detail-section" id="campana">
+        <section className="split">
+          <Card>
+            <CardHeader
+              title="Campaña del mes"
+              description={currentCampaign?.name ?? "Sin campaña activa"}
+              action={
+                currentCampaign ? <StatusBadge status={currentCampaign.status} /> : null
+              }
+            />
+            <div className="strategy-grid mt-5">
+              <SmallWorkflowStat
+                label="Objetivo mensual"
+                value={currentCampaign?.objective ?? client.objective ?? "Captación local"}
+              />
+              <SmallWorkflowStat
+                label="Oferta"
+                value={currentCampaign?.offer ?? "Oferta por definir"}
+              />
+              <SmallWorkflowStat
+                label="Audiencia"
+                value={
+                  currentCampaign?.targetAudience ??
+                  client.targetAudience ??
+                  "Audiencia local"
+                }
+              />
+              <SmallWorkflowStat
+                label="Dolor principal"
+                value={client.objective ?? "Necesidad no documentada"}
+              />
+              <SmallWorkflowStat
+                label="Estilo de contenido"
+                value={client.brandVoice ?? "Claro, local y directo"}
+              />
+              <SmallWorkflowStat
+                label="Presupuesto"
+                value={formatCurrency(currentCampaign?.budget ?? 0)}
+              />
+            </div>
+            {currentCampaign?.recommendations ? (
+              <div className="notice-card">
+                <strong>Recomendación interna</strong>
+                <span className="mt-2 block text-sm">
+                  {currentCampaign.recommendations}
+                </span>
+              </div>
+            ) : null}
+          </Card>
+
+          <Card>
+            <CardHeader title="Generar estrategia" description="IA interna" />
+            <div className="mt-5">
+              <ContentIdeaGenerator
+                clientId={client.id}
+                clientName={client.publicName}
+              />
+            </div>
+          </Card>
+        </section>
+
+        <Card className="mt-5">
+          <CardHeader title="Piezas planificadas" description="Kanban compacto" />
+          <div className="status-board-compact mt-5">
+            {[
+              "idea",
+              "recorded",
+              "editing",
+              "pending_approval",
+              "scheduled",
+              "published"
+            ].map((status) => (
+              <div className="status-column" key={status}>
+                <span>{statusLabel(status)}</span>
+                <strong>
+                  {data.content.filter((item) => item.status === status).length}
+                </strong>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 content-mini-list">
+            {data.content.length ? (
+              data.content.slice(0, 8).map((item) => (
+                <div className="content-mini-card" key={item.id}>
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>
+                      {item.contentCode ?? item.type} · {item.funnelStage ?? "Sin fase"}
+                    </span>
+                  </div>
+                  <StatusBadge status={item.status} />
+                </div>
+              ))
+            ) : (
+              <EmptyWorkflowState text="No hay piezas planificadas para este cliente." />
+            )}
+          </div>
+        </Card>
+      </section>
+
+      <section className="detail-section split" id="calendario">
+        <Card>
+          <CardHeader title="Crear evento" description="Calendario del cliente" />
+          <div className="mt-5">
+            <CalendarEventForm
+              clients={[client]}
+              campaigns={data.campaigns}
+              content={data.content}
+            />
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Próximos eventos" description="Agenda" />
+          <div className="mt-5 calendar-list">
+            {clientEvents.length ? (
+              clientEvents.map((event) => (
+                <CalendarEventRow
+                  clients={[client]}
+                  content={data.content}
+                  event={event}
+                  key={event.id}
+                />
+              ))
+            ) : (
+              <EmptyWorkflowState text="No hay eventos para este cliente." />
+            )}
+          </div>
+        </Card>
+      </section>
+
+      <section className="detail-section" id="metricas">
+        <Card>
+          <CardHeader
+            title="Métricas e informe"
+            description={latestMetric ? formatMonth(latestMetric.month, latestMetric.year) : "Sin mes"}
+            action={
+              <select
+                aria-label="Mes del informe"
+                className="compact-select"
+                defaultValue={
+                  latestMetric
+                    ? `${latestMetric.year}-${String(latestMetric.month).padStart(2, "0")}`
+                    : ""
+                }
+              >
+                {data.metrics.map((metric) => (
+                  <option
+                    key={metric.id}
+                    value={`${metric.year}-${String(metric.month).padStart(2, "0")}`}
+                  >
+                    {formatMonth(metric.month, metric.year)}
+                  </option>
+                ))}
+              </select>
+            }
+          />
+          <div className="strategy-grid mt-5">
+            <SmallWorkflowStat
+              label="Alcance"
+              value={formatCompactNumber(latestMetric?.reach ?? 0)}
+            />
+            <SmallWorkflowStat
+              label="Leads/mensajes"
+              value={formatNumber((latestMetric?.leads ?? 0) + (latestMetric?.messages ?? 0))}
+            />
+            <SmallWorkflowStat
+              label="Inversión"
+              value={formatCurrency(latestMetric?.totalInvestment ?? 0)}
+            />
+            <SmallWorkflowStat
+              label={latestMetric?.roiMode === "real" ? "ROI real" : "ROI estimado"}
+              value={
+                latestMetric?.estimatedRoi
+                  ? `${formatDecimal(latestMetric.estimatedRoi, 2)}x`
+                  : "Sin datos"
+              }
+            />
+            <SmallWorkflowStat
+              label="Reservas"
+              value={formatNumber(latestMetric?.bookings ?? 0)}
+            />
+          </div>
+          <div className="notice-card mt-5">
+            <strong>ROI estimado</strong>
+            <span className="mt-2 block text-sm">
+              Si no hay ventas confirmadas por el cliente, Stats marca el ROI
+              como estimado o datos insuficientes.
+            </span>
+          </div>
+          <div className="toolbar mt-5 justify-start">
+            <PdfDownloadButton
+              href={`/api/admin/reports/monthly/pdf?clientId=${client.id}${
+                latestMetric
+                  ? `&month=${latestMetric.month}&year=${latestMetric.year}`
+                  : ""
+              }`}
+              label="Generar informe mensual"
+            />
+          </div>
+        </Card>
+
+        <Card className="table-card mt-5">
+          <div className="p-[22px]">
+            <CardHeader title="Histórico compacto" description="Máximo foco" />
+          </div>
+          <div className="table-scroll">
+            <table className="data-table compact-table">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th>Alcance</th>
+                  <th>Leads</th>
+                  <th>Ads</th>
+                  <th>ROI</th>
+                  <th>Diagnóstico</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.metrics.map((metric) => (
+                  <tr key={metric.id}>
+                    <td>{formatMonth(metric.month, metric.year)}</td>
+                    <td>{formatNumber(metric.reach)}</td>
+                    <td>{formatNumber(metric.leads)}</td>
+                    <td>{formatCurrency(metric.adSpend)}</td>
+                    <td>
+                      {metric.estimatedRoi
+                        ? `${formatDecimal(metric.estimatedRoi, 2)}x`
+                        : "Sin datos"}
+                    </td>
+                    <td>{metric.diagnosis || "Sin diagnóstico"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </section>
+
+      <section className="detail-section" id="facturas">
+        <Card>
+          <CardHeader
+            title="Facturas"
+            description="Cliente"
+            action={
+              <ButtonLink href="/admin/invoices" variant="secondary">
+                <ReceiptText size={16} />
+                Crear factura mensual
+              </ButtonLink>
+            }
+          />
+          <div className="mt-5 list">
+            {data.invoices.length ? (
+              data.invoices.map((invoice) => (
+                <div className="list-item" key={invoice.id}>
+                  <CreditCard size={21} />
+                  <div className="list-item-main">
+                    <strong>{invoice.invoiceNumber}</strong>
+                    <span>
+                      {invoice.issueDate} · vence {invoice.dueDate} ·{" "}
+                      {formatCurrency(invoice.total)}
+                    </span>
+                  </div>
+                  <StatusBadge status={invoice.status} />
+                  <PdfDownloadButton
+                    href={`/api/admin/invoices/${invoice.id}/pdf`}
+                    label="PDF"
+                    variant="secondary"
+                  />
+                </div>
+              ))
+            ) : (
+              <EmptyWorkflowState text="No hay facturas registradas para este cliente." />
             )}
           </div>
           <div className="notice-card mt-5">
-            <strong>Facturación</strong>
+            <strong>Nota fiscal interna</strong>
             <span className="mt-2 block text-sm">
-              Estructura preparada para normativa española futura. La emisión
-              fiscal definitiva debe validarse con asesoría.
+              La estructura está preparada para adaptarse a normativa española
+              futura, pero la emisión fiscal definitiva debe validarse con asesoría.
             </span>
           </div>
         </Card>
       </section>
 
-      <section id="metricas">
-        <MetricsModule metrics={data.metrics} />
+      <section className="detail-section split" id="portal">
+        <Card>
+          <CardHeader
+            title="Portal cliente"
+            description={client.isDemo ? "Demo pública" : "Portal privado"}
+            action={<FileText size={22} />}
+          />
+          <div className="portal-preview mt-5">
+            <strong>{client.publicName}</strong>
+            <span>{client.planName} · {client.planStatus}</span>
+            <p>
+              El cliente ve dashboard, resultados, campañas, contenido, informes,
+              facturas, ranking y próximos pasos sin ver Leads/Radar.
+            </p>
+          </div>
+          <div className="toolbar mt-5 justify-start">
+            <ButtonLink href={portalHref} variant="secondary">
+              <ExternalLink size={16} />
+              Abrir portal
+            </ButtonLink>
+            {client.isDemo ? <CopyLinkButton value={`/demo/${client.slug}`} /> : null}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Informes disponibles" description="PDF" />
+          <div className="mt-5 list">
+            {data.reports.length ? (
+              data.reports.map((report) => (
+                <div className="list-item" key={report.id}>
+                  <FileBarChart size={21} />
+                  <div className="list-item-main">
+                    <strong>{report.title}</strong>
+                    <span>{formatMonth(report.month, report.year)}</span>
+                  </div>
+                  <StatusBadge status={report.status} />
+                </div>
+              ))
+            ) : (
+              <EmptyWorkflowState text="Todavía no hay informes guardados." />
+            )}
+          </div>
+        </Card>
       </section>
-      <section id="contenido">
-        <ContentWorkflowModule
-          admin
-          campaigns={data.campaigns}
-          clients={[client]}
-          content={data.content}
-        />
-      </section>
-      <section id="campanas">
-        <CampaignWorkflowModule campaigns={data.campaigns} clients={[client]} />
-      </section>
-      <section id="calendario">
-        <CalendarModule
-          campaigns={data.campaigns}
-          clients={[client]}
-          content={data.content}
-          events={clientEvents}
-        />
-      </section>
-      <section id="portal">
-        <ReportsModule reports={data.reports} clientId={client.id} admin />
+
+      <section className="detail-section split" id="ajustes">
+        <Card>
+          <CardHeader title="Ajustes del cliente" description="Portal y fiscal" />
+          <div className="mt-5 grid gap-3">
+            <SmallWorkflowStat
+              label="Datos fiscales"
+              value={client.taxId ? "Completos" : "Pendientes"}
+            />
+            <SmallWorkflowStat
+              label="Email facturación"
+              value={client.billingEmail ?? "Pendiente"}
+            />
+            <SmallWorkflowStat
+              label="Ranking público"
+              value={client.allowPublicLeaderboardName ? "Nombre visible" : "Anonimizado"}
+            />
+            <SmallWorkflowStat
+              label="Origen"
+              value={client.convertedFromLead ? "Convertido desde Leads" : "Stats"}
+            />
+          </div>
+        </Card>
+        <Card>
+          <CardHeader
+            title="Client Score"
+            description="Firekworks Level interno"
+            action={<span className="badge badge-blue">{score?.levelName ?? "Nuevo"}</span>}
+          />
+          <div className="mt-5 grid gap-4">
+            <strong className="metric-value">{score?.score ?? 0}</strong>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${score?.score ?? 0}%` }} />
+            </div>
+            <p className="m-0 text-sm text-[#6e6e73]">
+              {score?.action ?? "Cliente nuevo, requiere seguimiento."}
+            </p>
+          </div>
+        </Card>
       </section>
     </div>
   );

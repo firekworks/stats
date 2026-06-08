@@ -1,5 +1,7 @@
 import {
+  AlertTriangle,
   ArrowRight,
+  CalendarPlus,
   CalendarClock,
   CheckCircle2,
   CircleDollarSign,
@@ -13,11 +15,13 @@ import {
   Target,
   TrendingUp,
   Trophy,
+  UserPlus,
   WalletCards
 } from "lucide-react";
-import { CampaignBars, MonthlyTrendChart } from "@/components/charts";
+import { MonthlyTrendChart } from "@/components/charts";
 import { PdfDownloadButton } from "@/components/pdf-download-button";
 import {
+  ButtonLink,
   Card,
   CardHeader,
   MetricCard,
@@ -586,178 +590,292 @@ function formatDateShort(value: string) {
 
 export function AdminDashboard({ data }: { data: PortalData }) {
   const realClients = data.clients.filter((client) => !client.isDemo);
-  const activeClients = realClients.filter((client) => client.status === "active");
-  const demoClients = data.clients.filter((client) => client.isDemo);
-  const pendingContent = data.content.filter((item) =>
-    ["idea", "recorded", "editing", "pending_approval", "scheduled"].includes(
-      item.status
-    )
+  const now = new Date();
+  const nextEvents = data.calendarEvents
+    .filter((event) => new Date(event.startAt).getTime() >= now.getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+    );
+  const nextEvent = nextEvents[0];
+  const pendingApprovals = data.content.filter(
+    (item) => item.status === "pending_approval"
   );
-  const weekEvents = data.calendarEvents.slice(0, 7);
-  const connectedIntegrations = data.integrations.filter(
-    (integration) => integration.status === "connected"
+  const invoicesToWatch = data.invoices
+    .filter((invoice) => {
+      if (["paid", "cancelled"].includes(invoice.status)) return false;
+      const due = new Date(invoice.dueDate);
+      const days = daysBetween(now, due);
+
+      return invoice.status === "overdue" || days <= 14;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+    );
+  const priorityAlerts = data.alerts.filter((alert) =>
+    ["critical", "warning"].includes(alert.severity)
   );
-  const totalReach = data.metrics.reduce((sum, item) => sum + item.reach, 0);
-  const totalLeads = data.metrics.reduce((sum, item) => sum + item.leads, 0);
-  const totalManaged = data.metrics.reduce(
-    (sum, item) => sum + item.totalInvestment,
-    0
+  const clientsWithAlerts = realClients.filter((client) =>
+    priorityAlerts.some((alert) => alert.clientId === client.id)
   );
-  const campaignBars = data.campaigns.map((campaign) => ({
-    name: campaign.name.split(" ").slice(0, 2).join(" "),
-    leads: campaign.leads,
-    spend: campaign.spend
-  }));
+  const nextEventClient = nextEvent
+    ? data.clients.find((client) => client.id === nextEvent.clientId)
+    : null;
 
   return (
     <div className="grid">
       <section className="grid grid-4">
-        <MetricCard
-          icon={Target}
-          label="Clientes activos"
-          value={String(activeClients.length)}
-          helper={`${realClients.length} reales en cartera`}
-          tone="blue"
-        />
-        <MetricCard
-          icon={Eye}
-          label="Alcance gestionado"
-          value={formatCompactNumber(totalReach)}
-          helper="Ultimos registros mensuales"
-          tone="mint"
-        />
-        <MetricCard
-          icon={MessageCircle}
-          label="Leads generados"
-          value={formatNumber(totalLeads)}
-          helper="Mensajes, leads y reservas"
-          tone="green"
-        />
-        <MetricCard
-          icon={WalletCards}
-          label="Inversion gestionada"
-          value={formatCurrency(totalManaged)}
-          helper="Ads + fee + extras"
-          tone="orange"
-        />
-      </section>
-
-      <section className="grid grid-4">
-        <MetricCard
-          icon={Sparkles}
-          label="Demos comerciales"
-          value={String(demoClients.length)}
-          helper="Portales públicos anonimizados"
-          tone="blue"
-        />
-        <MetricCard
-          icon={FileBarChart}
-          label="Contenido pendiente"
-          value={String(pendingContent.length)}
-          helper="Ideas, edición, aprobación o programación"
-          tone="mint"
-        />
-        <MetricCard
+        <OperationalCard
           icon={CalendarClock}
-          label="Agenda semanal"
-          value={String(weekEvents.length)}
-          helper="Eventos próximos en calendario"
-          tone="green"
+          label="Próximo evento importante"
+          title={nextEvent?.title ?? "Sin eventos próximos"}
+          text={
+            nextEvent
+              ? `${nextEventClient?.publicName ?? "Firekworks"} · ${formatDateShort(
+                  nextEvent.startAt
+                )}`
+              : "Crea una revisión, publicación o reunión desde Calendario."
+          }
+          tone="blue"
+          badge={nextEvent?.status ?? "pendiente"}
+          href="/admin/calendar"
         />
-        <MetricCard
-          icon={CheckCircle2}
-          label="Integraciones"
-          value={String(connectedIntegrations.length)}
-          helper="Activos conectados a APIs"
+        <OperationalCard
+          icon={FileBarChart}
+          label="Contenido pendiente de aprobar"
+          title={`${pendingApprovals.length} pieza${
+            pendingApprovals.length === 1 ? "" : "s"
+          }`}
+          text={pendingApprovals[0]?.title ?? "Nada bloqueado ahora mismo."}
+          tone="mint"
+          badge={pendingApprovals.length ? "revisar" : "al dia"}
+          href="/admin/clients"
+        />
+        <OperationalCard
+          icon={ReceiptText}
+          label="Facturas vencidas o próximas"
+          title={`${invoicesToWatch.length} factura${
+            invoicesToWatch.length === 1 ? "" : "s"
+          }`}
+          text={
+            invoicesToWatch[0]
+              ? `${invoicesToWatch[0].invoiceNumber} · vence ${formatDateShort(
+                  invoicesToWatch[0].dueDate
+                )}`
+              : "No hay cobros urgentes en los próximos 14 días."
+          }
           tone="orange"
+          badge={invoicesToWatch[0]?.status ?? "ok"}
+          href="/admin/clients"
+        />
+        <OperationalCard
+          icon={AlertTriangle}
+          label="Clientes con alerta"
+          title={`${clientsWithAlerts.length} cliente${
+            clientsWithAlerts.length === 1 ? "" : "s"
+          }`}
+          text={
+            priorityAlerts[0]
+              ? `${priorityAlerts[0].title} · ${
+                  data.clients.find(
+                    (client) => client.id === priorityAlerts[0].clientId
+                  )?.publicName ?? "Cliente"
+                }`
+              : "Sin señales críticas ni avisos internos prioritarios."
+          }
+          tone="red"
+          badge={priorityAlerts[0]?.severity ?? "estable"}
+          href="/admin/clients"
         />
       </section>
 
       <section className="split">
-        <Card className="chart-card">
-          <CardHeader title="Campañas por leads" description="Vista global" />
-          <div className="chart-wrap">
-            <CampaignBars data={campaignBars} />
+        <Card className="ops-quick-panel">
+          <CardHeader title="Acciones rápidas" description="Operativa" />
+          <div className="mt-5 toolbar justify-start">
+            <ButtonLink href="/admin/clients" variant="secondary">
+              <UserPlus size={16} />
+              Nuevo cliente
+            </ButtonLink>
+            <ButtonLink href="/admin/calendar" variant="secondary">
+              <CalendarPlus size={16} />
+              Crear evento
+            </ButtonLink>
+            <ButtonLink href="/admin/demos">
+              <Sparkles size={16} />
+              Ver demos
+            </ButtonLink>
+          </div>
+          <p className="ops-helper">
+            Stats queda centrado en clientes: cada ficha reúne campaña del mes,
+            calendario, métricas, informes, facturas y ajustes del portal.
+          </p>
+        </Card>
+
+        <Card>
+          <CardHeader title="Clientes que requieren atención" description="Hoy" />
+          <div className="mt-5 list">
+            {priorityAlerts.length ? (
+              priorityAlerts.slice(0, 5).map((alert) => {
+                const client = data.clients.find(
+                  (item) => item.id === alert.clientId
+                );
+
+                return (
+                  <div className="list-item" key={alert.id}>
+                    <div className="list-item-main">
+                      <strong>{alert.title}</strong>
+                      <span>{client?.publicName ?? "Cliente"}</span>
+                    </div>
+                    <span
+                      className={`badge ${
+                        alert.severity === "warning"
+                          ? "badge-orange"
+                          : alert.severity === "critical"
+                            ? "badge-red"
+                            : alert.severity === "success"
+                              ? "badge-green"
+                              : "badge-blue"
+                      }`}
+                    >
+                      {alert.severity}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <DashboardEmpty
+                title="Sin alertas prioritarias"
+                text="Las incidencias de respuesta, cobro, accesos o métricas aparecerán aquí."
+              />
+            )}
           </div>
         </Card>
+      </section>
+
+      <section className="grid grid-2">
         <Card>
-          <CardHeader title="Alertas internas" description="Prioridad" />
+          <CardHeader title="Agenda inmediata" description="Próximos eventos" />
           <div className="mt-5 list">
-            {data.alerts.map((alert) => {
-              const client = data.clients.find((item) => item.id === alert.clientId);
+            {nextEvents.length ? (
+              nextEvents.slice(0, 5).map((event) => {
+                const client = data.clients.find((item) => item.id === event.clientId);
+
+                return (
+                  <div className="list-item" key={event.id}>
+                    <div className="list-item-main">
+                      <strong>{event.title}</strong>
+                      <span>
+                        {client?.publicName ?? "Firekworks"} · {formatDateShort(event.startAt)}
+                      </span>
+                    </div>
+                    <StatusBadge status={event.status} />
+                  </div>
+                );
+              })
+            ) : (
+              <DashboardEmpty
+                title="Agenda limpia"
+                text="Añade próximos hitos de cliente desde el calendario."
+              />
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Aprobaciones y cobros" description="Bloqueos reales" />
+          <div className="mt-5 list">
+            {pendingApprovals.slice(0, 3).map((item) => {
+              const client = data.clients.find((entry) => entry.id === item.clientId);
 
               return (
-                <div className="list-item" key={alert.id}>
+                <div className="list-item" key={item.id}>
                   <div className="list-item-main">
-                    <strong>{alert.title}</strong>
-                    <span>{client?.publicName ?? "Cliente"}</span>
+                    <strong>{item.title}</strong>
+                    <span>{client?.publicName ?? "Cliente"} · pendiente de aprobar</span>
                   </div>
-                  <span
-                    className={`badge ${
-                      alert.severity === "warning"
-                        ? "badge-orange"
-                        : alert.severity === "critical"
-                          ? "badge-red"
-                          : alert.severity === "success"
-                            ? "badge-green"
-                            : "badge-blue"
-                    }`}
-                  >
-                    {alert.severity}
-                  </span>
+                  <StatusBadge status={item.status} />
                 </div>
               );
             })}
+            {invoicesToWatch.slice(0, 3).map((invoice) => {
+              const client = data.clients.find(
+                (entry) => entry.id === invoice.clientId
+              );
+
+              return (
+                <div className="list-item" key={invoice.id}>
+                  <div className="list-item-main">
+                    <strong>{invoice.invoiceNumber}</strong>
+                    <span>
+                      {client?.publicName ?? "Cliente"} · {formatCurrency(invoice.total)}
+                    </span>
+                  </div>
+                  <StatusBadge status={invoice.status} />
+                </div>
+              );
+            })}
+            {!pendingApprovals.length && !invoicesToWatch.length ? (
+              <DashboardEmpty
+                title="Sin bloqueos"
+                text="No hay aprobaciones pendientes ni facturas urgentes."
+              />
+            ) : null}
           </div>
         </Card>
       </section>
-
-      <section className="grid grid-3">
-        {data.clients.map((client) => {
-          const metric = data.metrics.find((item) => item.clientId === client.id);
-          const score = data.scores.find((item) => item.clientId === client.id);
-
-          return (
-            <Card key={client.id}>
-              <CardHeader
-                title={client.publicName}
-                description={client.industry}
-                action={<StatusBadge status={client.status} />}
-              />
-              <div className="mt-5 grid gap-4">
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm text-[#6e6e73]">
-                    <span>Firekworks Level</span>
-                    <strong>{score?.levelName}</strong>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${score?.score ?? 50}%` }}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-2">
-                  <div>
-                    <span className="metric-label">Alcance</span>
-                    <strong className="block text-2xl">
-                      {formatCompactNumber(metric?.reach ?? 0)}
-                    </strong>
-                  </div>
-                  <div>
-                    <span className="metric-label">Leads</span>
-                    <strong className="block text-2xl">
-                      {formatNumber(metric?.leads ?? 0)}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
-      </section>
     </div>
   );
+}
+
+function OperationalCard({
+  icon: Icon,
+  label,
+  title,
+  text,
+  tone,
+  badge,
+  href
+}: {
+  icon: typeof CalendarClock;
+  label: string;
+  title: string;
+  text: string;
+  tone: "blue" | "mint" | "orange" | "red";
+  badge: string;
+  href: string;
+}) {
+  const toneClass = {
+    blue: "ops-card-blue",
+    mint: "ops-card-mint",
+    orange: "ops-card-orange",
+    red: "ops-card-red"
+  }[tone];
+
+  return (
+    <Card className={`ops-card ${toneClass}`}>
+      <div className="ops-card-top">
+        <span className="metric-label">{label}</span>
+        <span className="ops-card-icon">
+          <Icon size={21} />
+        </span>
+      </div>
+      <strong>{title}</strong>
+      <p>{text}</p>
+      <footer className="metric-foot">
+        <span className="badge badge-gray">{badge}</span>
+        <ButtonLink href={href} variant="ghost">
+          Abrir
+          <ArrowRight size={15} />
+        </ButtonLink>
+      </footer>
+    </Card>
+  );
+}
+
+function daysBetween(start: Date, end: Date) {
+  return Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 export function RetentionValue({ data }: { data: PortalData }) {
