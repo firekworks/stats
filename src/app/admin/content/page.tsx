@@ -1,5 +1,5 @@
-import { ContentModule } from "@/components/modules";
 import { PageHeader } from "@/components/ui";
+import { ContentWorkflowModule } from "@/components/workflow-modules";
 import { getAdminPortalData } from "@/lib/data-access";
 
 export default async function AdminContentPage() {
@@ -12,7 +12,12 @@ export default async function AdminContentPage() {
         title="Biblioteca interna"
         description="Piezas entregadas, rendimiento, aprendizajes y estado de aprobacion."
       />
-      <ContentModule content={data.content} admin />
+      <ContentWorkflowModule
+        admin
+        campaigns={data.campaigns}
+        clients={data.clients}
+        content={data.content}
+      />
     </>
   );
 }

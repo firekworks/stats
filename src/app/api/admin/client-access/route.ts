@@ -24,7 +24,7 @@ type AccessBody = {
 };
 
 export async function POST(request: Request) {
-  const auth = await requireSalesUser();
+  const auth = await requireAdminUser();
   if ("response" in auth) return auth.response;
 
   const body = (await request.json().catch(() => ({}))) as AccessBody;
@@ -155,7 +155,7 @@ function normalizeUsername(value: string) {
     .slice(0, 32);
 }
 
-async function requireSalesUser() {
+async function requireAdminUser() {
   const supabase = await getSupabaseServerClient();
   const admin = getSupabaseAdminClient();
 
@@ -178,8 +178,8 @@ async function requireSalesUser() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!profile?.is_active || !["admin", "sales"].includes(profile.role as string)) {
-    return { response: NextResponse.json({ error: "Rol admin o ventas requerido" }, { status: 403 }) };
+  if (!profile?.is_active || profile.role !== "admin") {
+    return { response: NextResponse.json({ error: "Rol admin requerido" }, { status: 403 }) };
   }
 
   return { admin, userId: user.id };

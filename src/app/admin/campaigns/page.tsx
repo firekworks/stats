@@ -1,5 +1,5 @@
-import { CampaignsModule } from "@/components/modules";
 import { PageHeader } from "@/components/ui";
+import { CampaignWorkflowModule } from "@/components/workflow-modules";
 import { getAdminPortalData } from "@/lib/data-access";
 
 export default async function AdminCampaignsPage() {
@@ -12,7 +12,7 @@ export default async function AdminCampaignsPage() {
         title="Gestion de campañas"
         description="Campañas de Meta Ads, Instagram, Facebook, GBP, WhatsApp y landings."
       />
-      <CampaignsModule campaigns={data.campaigns} admin />
+      <CampaignWorkflowModule campaigns={data.campaigns} clients={data.clients} />
     </>
   );
 }

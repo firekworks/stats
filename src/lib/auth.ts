@@ -10,10 +10,20 @@ export type SessionProfile = {
 };
 
 export async function getCurrentProfile() {
+  const profile = await getCurrentProfileOrNull();
+
+  if (!profile) {
+    redirect("/login");
+  }
+
+  return profile;
+}
+
+export async function getCurrentProfileOrNull(): Promise<SessionProfile | null> {
   const supabase = await getSupabaseServerClient();
 
   if (!supabase) {
-    redirect("/login");
+    return null;
   }
 
   const {
@@ -22,7 +32,7 @@ export async function getCurrentProfile() {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
-    redirect("/login");
+    return null;
   }
 
   const { data: profile } = await supabase
@@ -31,7 +41,7 @@ export async function getCurrentProfile() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (profile?.is_active && ["admin", "sales", "viewer"].includes(profile.role)) {
+  if (profile?.is_active && ["admin", "team", "sales", "viewer", "demo_viewer"].includes(profile.role)) {
     return {
       id: profile.user_id,
       role: profile.role as Role,
@@ -48,7 +58,7 @@ export async function getCurrentProfile() {
     .maybeSingle();
 
   if (!clientUser?.client_id) {
-    redirect("/login");
+    return null;
   }
 
   return {
@@ -72,8 +82,18 @@ export async function requireRole(role: Role) {
 export async function requireInternalRole() {
   const profile = await getCurrentProfile();
 
-  if (!["admin", "sales", "viewer"].includes(profile.role)) {
+  if (!["admin", "team", "sales", "viewer"].includes(profile.role)) {
     redirect("/client");
+  }
+
+  return profile;
+}
+
+export async function requireAdminRole() {
+  const profile = await getCurrentProfile();
+
+  if (profile.role !== "admin") {
+    redirect("/access-denied");
   }
 
   return profile;

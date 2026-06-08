@@ -1,4 +1,4 @@
-export type Role = "admin" | "sales" | "viewer" | "client";
+export type Role = "admin" | "team" | "sales" | "viewer" | "client" | "demo_viewer";
 
 export type ClientStatus = "active" | "paused" | "churned";
 
@@ -66,6 +66,8 @@ export type Client = {
   slug: string;
   publicName: string;
   legalName: string;
+  isDemo?: boolean;
+  demoLabel?: string | null;
   leadId?: string | null;
   source?: string | null;
   taxId?: string | null;
@@ -76,6 +78,18 @@ export type Client = {
   industry: string;
   status: ClientStatus;
   city: string;
+  logoUrl?: string | null;
+  brandColors?: string[];
+  brandVoice?: string | null;
+  targetAudience?: string | null;
+  objective?: string | null;
+  services?: string[];
+  driveFolderId?: string | null;
+  convertedFromLead?: boolean;
+  conversionDate?: string | null;
+  originalLeadScore?: number | null;
+  originalLeadCity?: string | null;
+  originalLeadSector?: string | null;
   averageTicket: number;
   allowPublicLeaderboardName: boolean;
   planName: string;
@@ -121,6 +135,15 @@ export type Campaign = {
   name: string;
   platform: CampaignPlatform;
   objective: CampaignObjective;
+  campaignType?: string | null;
+  offer?: string | null;
+  targetAudience?: string | null;
+  funnelStage?: string | null;
+  funnelStagePlan?: Record<string, unknown> | null;
+  recommendations?: string | null;
+  launchChecklist?: unknown[] | null;
+  isDemo?: boolean;
+  metricMode?: "demo" | "real" | "manual" | null;
   budget: number;
   spend: number;
   startDate: string;
@@ -140,6 +163,10 @@ export type Campaign = {
   visibleSummary: string;
   source?: string | null;
   syncStatus?: string | null;
+  metaAdAccountId?: string | null;
+  metaCampaignId?: string | null;
+  metaAdsetId?: string | null;
+  metaAdId?: string | null;
   externalCampaignId?: string | null;
   externalAdAccountId?: string | null;
   plannedBudget?: number;
@@ -153,13 +180,33 @@ export type Campaign = {
 export type ContentItem = {
   id: string;
   clientId: string;
+  campaignId?: string | null;
+  contentCode?: string | null;
   title: string;
   type: ContentType;
   platform: CampaignPlatform;
+  objective?: string | null;
+  funnelStage?: string | null;
+  hook?: string | null;
+  caption?: string | null;
+  visualBrief?: string | null;
+  cta?: string | null;
+  dueDate?: string | null;
   publishDate: string;
   status: ContentStatus;
   url: string;
   storagePath: string | null;
+  driveFolderId?: string | null;
+  googleDriveFolderId?: string | null;
+  canvaDesignId?: string | null;
+  canvaEditUrl?: string | null;
+  canvaViewUrl?: string | null;
+  metaPostId?: string | null;
+  previewImageUrl?: string | null;
+  previewData?: Record<string, unknown> | null;
+  notes?: string | null;
+  assignedTo?: string | null;
+  isDemo?: boolean;
   views: number;
   reach: number;
   impressions?: number;
@@ -264,6 +311,37 @@ export type Task = {
   visibleToClient: boolean;
 };
 
+export type CalendarEvent = {
+  id: string;
+  clientId: string | null;
+  leadId: string | null;
+  campaignId: string | null;
+  contentItemId: string | null;
+  title: string;
+  type: string;
+  status: "pending" | "confirmed" | "done" | "cancelled";
+  startAt: string;
+  endAt: string | null;
+  location: string | null;
+  googleMapsUrl: string | null;
+  googleCalendarEventId: string | null;
+  notes: string | null;
+  assignedTo: string | null;
+  createdBy?: string | null;
+  isDemo?: boolean;
+};
+
+export type ContentIdea = {
+  title: string;
+  objective: string;
+  format: ContentType;
+  funnelStage: string;
+  copyBase: string;
+  cta: string;
+  visualBrief: string;
+  strategicReason: string;
+};
+
 export type IntegrationStatus = {
   id: string;
   clientId: string;
@@ -323,6 +401,7 @@ export type PortalData = {
   scores: ClientScore[];
   alerts: Alert[];
   tasks: Task[];
+  calendarEvents: CalendarEvent[];
   integrations: IntegrationStatus[];
   connectedAssets: ConnectedAsset[];
   syncLogs: IntegrationSyncLog[];

@@ -1,5 +1,5 @@
-import { CampaignsModule, ContentModule, MetricsModule, ReportsModule } from "@/components/modules";
 import { PageHeader } from "@/components/ui";
+import { ClientInternalDetail } from "@/components/workflow-modules";
 import { getAdminPortalData } from "@/lib/data-access";
 
 export default async function AdminClientDetailPage({
@@ -16,7 +16,11 @@ export default async function AdminClientDetailPage({
     metrics: data.metrics.filter((item) => item.clientId === client.id),
     campaigns: data.campaigns.filter((item) => item.clientId === client.id),
     content: data.content.filter((item) => item.clientId === client.id),
-    reports: data.reports.filter((item) => item.clientId === client.id)
+    reports: data.reports.filter((item) => item.clientId === client.id),
+    invoices: data.invoices.filter((item) => item.clientId === client.id),
+    alerts: data.alerts.filter((item) => item.clientId === client.id),
+    tasks: data.tasks.filter((item) => item.clientId === client.id),
+    calendarEvents: data.calendarEvents.filter((item) => item.clientId === client.id)
   };
 
   return (
@@ -26,12 +30,7 @@ export default async function AdminClientDetailPage({
         title={client.publicName}
         description="Ficha interna con metricas, campanas, contenido e informes."
       />
-      <div className="grid">
-        <MetricsModule metrics={clientData.metrics} />
-        <CampaignsModule campaigns={clientData.campaigns} admin />
-        <ContentModule content={clientData.content} admin />
-        <ReportsModule reports={clientData.reports} clientId={client.id} admin />
-      </div>
+      <ClientInternalDetail data={clientData} />
     </>
   );
 }

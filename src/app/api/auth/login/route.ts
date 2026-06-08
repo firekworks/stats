@@ -4,7 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
 const missingTableCodes = new Set(["42P01", "42703", "PGRST106", "PGRST205"]);
-const internalRoles = new Set<Role>(["admin", "sales", "viewer"]);
+const internalRoles = new Set<Role>(["admin", "team", "sales", "viewer"]);
 
 const reservedUsernames = new Set([
   "admin",
@@ -158,7 +158,7 @@ async function validateAccess(
   }
 
   if (internalRoles.has(profile.role)) {
-    return { ok: true, route: "/admin" };
+    return { ok: true, route: profile.role === "admin" ? "/admin" : "/access-denied" };
   }
 
   if (profile.role !== "client") {

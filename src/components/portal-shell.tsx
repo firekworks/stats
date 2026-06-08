@@ -1,4 +1,4 @@
-import { Bell, BookOpenCheck } from "lucide-react";
+import { Bell, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FirekworksMark } from "@/components/firekworks-mark";
@@ -19,7 +19,9 @@ const clientLinks: PortalNavItem[] = [
 const adminLinks: PortalNavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "dashboard" },
   { href: "/admin/clients", label: "Clientes", icon: "clients" },
+  { href: "/admin/demos", label: "Demos", icon: "demos" },
   { href: "/admin/client-access", label: "Accesos", icon: "access" },
+  { href: "/admin/calendar", label: "Calendario", icon: "calendar" },
   { href: "/admin/campaigns", label: "Campañas", icon: "campaigns" },
   { href: "/admin/content", label: "Contenido", icon: "content" },
   { href: "/admin/metrics", label: "Métricas", icon: "results" },
@@ -63,13 +65,10 @@ export function PortalShell({
             {mode === "client" ? "Plan activo" : "Alertas al dia"}
           </div>
           {mode === "admin" ? (
-            <Link
-              href="/client"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#0071e3]"
-            >
-              <BookOpenCheck size={16} />
-              Ver portal cliente
-            </Link>
+            <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-[#0071e3]">
+              <ShieldCheck size={16} />
+              Admin protegido
+            </div>
           ) : null}
         </div>
       </aside>

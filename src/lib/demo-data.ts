@@ -6,6 +6,7 @@ import {
 import type {
   Alert,
   Campaign,
+  CalendarEvent,
   Client,
   ClientScore,
   ContentItem,
@@ -19,52 +20,76 @@ import type {
 
 export const clients: Client[] = [
   {
-    id: "11111111-1111-4111-8111-111111111111",
-    slug: "casa-lumbre",
-    publicName: "Casa Lumbre",
-    legalName: "Restaurante Casa Lumbre SL",
+    id: "10000000-0000-4000-8000-000000000101",
+    slug: "restaurante-brasa-norte",
+    publicName: "Restaurante Brasa Norte",
+    legalName: "Restaurante Brasa Norte Demo SL",
+    isDemo: true,
+    demoLabel: "Demo Firekworks",
     industry: "Restaurante",
     status: "active",
-    city: "Valencia",
-    averageTicket: 32,
+    city: "Castalla",
+    logoUrl: "/brand/firekworks-icon.png",
+    brandColors: ["#1d1d1f", "#b7791f", "#f97316"],
+    brandVoice: "Cercano, apetitoso, local y directo.",
+    targetAudience: "Parejas, familias y grupos locales.",
+    objective: "Aumentar reservas de fin de semana.",
+    services: ["Contenido mensual", "Meta Ads", "Google Business Profile", "WhatsApp"],
+    averageTicket: 35,
     allowPublicLeaderboardName: true,
-    planName: "Growth Local",
+    planName: "Demo Growth Local",
     planStatus: "Activo",
     monthlyFee: 790,
     onboardedAt: "2025-10-01",
     publicLeaderboardName: "Restaurante mediterraneo"
   },
   {
-    id: "22222222-2222-4222-8222-222222222222",
-    slug: "primefit",
-    publicName: "PrimeFit Studio",
-    legalName: "PrimeFit Studio CB",
-    industry: "Gimnasio",
+    id: "10000000-0000-4000-8000-000000000102",
+    slug: "clinica-dental-sonrisa-ibi",
+    publicName: "Clínica Dental Sonrisa Ibi",
+    legalName: "Clinica Dental Sonrisa Ibi Demo SL",
+    isDemo: true,
+    demoLabel: "Demo Firekworks",
+    industry: "Clínica dental",
     status: "active",
-    city: "Alicante",
-    averageTicket: 48,
+    city: "Ibi",
+    logoUrl: "/brand/firekworks-icon.png",
+    brandColors: ["#0f9f8f", "#0071e3", "#f5f5f7"],
+    brandVoice: "Profesional, tranquilo, educativo y basado en confianza.",
+    targetAudience: "Familias y adultos que necesitan primera visita o limpieza.",
+    objective: "Captar primeras visitas y limpiezas.",
+    services: ["Embudo de leads", "Landing", "Meta Ads", "Seguimiento"],
+    averageTicket: 85,
     allowPublicLeaderboardName: false,
-    planName: "Performance Local",
+    planName: "Demo Embudo Local",
     planStatus: "Activo",
     monthlyFee: 990,
     onboardedAt: "2025-08-15",
     publicLeaderboardName: "Cliente local #02"
   },
   {
-    id: "33333333-3333-4333-8333-333333333333",
-    slug: "derma-nova",
-    publicName: "Derma Nova",
-    legalName: "Clinica Derma Nova SL",
-    industry: "Clinica estetica",
+    id: "10000000-0000-4000-8000-000000000103",
+    slug: "fitbox-elda",
+    publicName: "FitBox Elda",
+    legalName: "FitBox Elda Demo CB",
+    isDemo: true,
+    demoLabel: "Demo Firekworks",
+    industry: "Gimnasio",
     status: "active",
-    city: "Murcia",
-    averageTicket: 185,
+    city: "Elda",
+    logoUrl: "/brand/firekworks-icon.png",
+    brandColors: ["#001020", "#2f9e44", "#0071e3"],
+    brandVoice: "Energético, motivador, competitivo y muy visual.",
+    targetAudience: "Personas de Elda que quieren probar entrenamiento funcional.",
+    objective: "Captar nuevos socios para campaña mensual.",
+    services: ["Reels", "Campañas Meta", "Prueba gratuita", "Reporting"],
+    averageTicket: 49,
     allowPublicLeaderboardName: false,
-    planName: "Premium Ads + Contenido",
+    planName: "Demo Performance Local",
     planStatus: "Activo",
     monthlyFee: 1290,
     onboardedAt: "2025-06-01",
-    publicLeaderboardName: "Clinica estetica"
+    publicLeaderboardName: "Gimnasio demo"
   }
 ];
 
@@ -260,7 +285,7 @@ export const campaigns: Campaign[] = [
   {
     id: "camp-primefit-trial",
     clientId: clients[1].id,
-    name: "Prueba semanal PrimeFit",
+    name: "Primeras visitas Sonrisa Ibi",
     platform: "Instagram",
     objective: "Leads",
     budget: 1350,
@@ -275,12 +300,12 @@ export const campaigns: Campaign[] = [
     costPerLead: 11.91,
     roas: 2.15,
     visibleSummary:
-      "Captacion de pruebas con creatividades de transformacion y mensajes directos."
+      "Captacion de primeras visitas con creatividades de confianza y formulario sencillo."
   },
   {
     id: "camp-derma-consulta",
     clientId: clients[2].id,
-    name: "Diagnostico facial primavera",
+    name: "Prueba gratuita FitBox Elda",
     platform: "Meta Ads",
     objective: "Reservas",
     budget: 1900,
@@ -295,7 +320,7 @@ export const campaigns: Campaign[] = [
     costPerLead: 20.24,
     roas: null,
     visibleSummary:
-      "Campana educativa para generar consultas cualificadas sin promesas agresivas."
+      "Campana demo para convertir reels y prueba social en reservas de clase gratuita."
   }
 ];
 
@@ -309,7 +334,7 @@ export const contentItems: ContentItem[] = [
     publishDate: "2026-04-12",
     status: "published",
     url: "https://instagram.com/firekworks-demo",
-    storagePath: "11111111-1111-4111-8111-111111111111/reels/menu-abril.mp4",
+    storagePath: "10000000-0000-4000-8000-000000000101/reels/menu-abril.mp4",
     views: 28400,
     reach: 22100,
     likes: 946,
@@ -347,13 +372,13 @@ export const contentItems: ContentItem[] = [
   {
     id: "content-primefit-transformation",
     clientId: clients[1].id,
-    title: "Transformacion 8 semanas",
+    title: "Primera visita sin miedo",
     type: "Carrusel",
     platform: "Instagram",
     publishDate: "2026-04-09",
     status: "published",
     url: "https://instagram.com/firekworks-demo",
-    storagePath: "22222222-2222-4222-8222-222222222222/carousels/8-semanas.zip",
+    storagePath: "10000000-0000-4000-8000-000000000102/carousels/primera-visita.zip",
     views: 12100,
     reach: 9400,
     likes: 502,
@@ -364,12 +389,12 @@ export const contentItems: ContentItem[] = [
     performance: "high",
     reusable: true,
     learning:
-      "El antes/despues con historia concreta consigue leads mas decididos."
+      "El enfoque educativo y tranquilo reduce friccion antes de pedir cita."
   },
   {
     id: "content-primefit-story-horarios",
     clientId: clients[1].id,
-    title: "Stories horarios festivos",
+    title: "Stories dudas frecuentes",
     type: "Story",
     platform: "Instagram",
     publishDate: "2026-04-28",
@@ -386,18 +411,18 @@ export const contentItems: ContentItem[] = [
     performance: "low",
     reusable: false,
     learning:
-      "Contenido informativo necesario, pero no debe ocupar huecos de piezas de captacion."
+      "Resolver objeciones funciona mejor cuando se enlaza con cita inmediata."
   },
   {
     id: "content-derma-before-after",
     clientId: clients[2].id,
-    title: "Caso real tratamiento manchas",
+    title: "Reto funcional de 30 segundos",
     type: "Reel",
     platform: "Instagram",
     publishDate: "2026-04-15",
     status: "published",
     url: "https://instagram.com/firekworks-demo",
-    storagePath: "33333333-3333-4333-8333-333333333333/reels/manchas.mp4",
+    storagePath: "10000000-0000-4000-8000-000000000103/reels/reto-funcional.mp4",
     views: 34200,
     reach: 28700,
     likes: 1204,
@@ -408,18 +433,18 @@ export const contentItems: ContentItem[] = [
     performance: "viral",
     reusable: true,
     learning:
-      "La prueba visual con contexto clinico genera confianza y preguntas cualificadas."
+      "El contenido intenso y real del box genera retencion y mensajes de prueba."
   },
   {
     id: "content-derma-static-promo",
     clientId: clients[2].id,
-    title: "Creatividad promo limpieza facial",
+    title: "Creatividad clase gratuita",
     type: "Creatividad",
     platform: "Meta Ads",
     publishDate: "2026-04-06",
     status: "published",
     url: "https://facebook.com/firekworks-demo",
-    storagePath: "33333333-3333-4333-8333-333333333333/ads/limpieza.png",
+    storagePath: "10000000-0000-4000-8000-000000000103/ads/clase-gratuita.png",
     views: 6800,
     reach: 5600,
     likes: 141,
@@ -430,7 +455,7 @@ export const contentItems: ContentItem[] = [
     performance: "ok",
     reusable: true,
     learning:
-      "Promocion directa atrae volumen, pero las consultas son menos cualificadas."
+      "La promocion directa convierte mejor al mostrar ambiente y facilidad para empezar."
   }
 ];
 
@@ -442,7 +467,7 @@ export const reports: Report[] = [
     year: 2026,
     title: "Informe mensual - Abril 2026",
     status: "generated",
-    storagePath: "11111111-1111-4111-8111-111111111111/reports/2026-04.pdf",
+    storagePath: "10000000-0000-4000-8000-000000000101/reports/2026-04.pdf",
     generatedAt: "2026-05-02T09:10:00.000Z"
   },
   {
@@ -452,7 +477,7 @@ export const reports: Report[] = [
     year: 2026,
     title: "Informe mensual - Abril 2026",
     status: "sent",
-    storagePath: "22222222-2222-4222-8222-222222222222/reports/2026-04.pdf",
+    storagePath: "10000000-0000-4000-8000-000000000102/reports/2026-04.pdf",
     generatedAt: "2026-05-03T11:30:00.000Z"
   },
   {
@@ -559,7 +584,7 @@ export const leaderboards: LeaderboardEntry[] = [
     clientId: clients[0].id,
     category: "Mejor crecimiento mensual",
     rank: 1,
-    displayName: "Casa Lumbre",
+    displayName: "Restaurante local demo",
     metricLabel: "+25,2% alcance",
     trend: 25.2,
     isCurrentClient: true
@@ -569,7 +594,7 @@ export const leaderboards: LeaderboardEntry[] = [
     clientId: clients[2].id,
     category: "Mejor crecimiento mensual",
     rank: 2,
-    displayName: "Clinica estetica",
+    displayName: "Gimnasio demo",
     metricLabel: "+18,4% alcance",
     trend: 18.4
   },
@@ -587,7 +612,7 @@ export const leaderboards: LeaderboardEntry[] = [
     clientId: clients[0].id,
     category: "Mejor coste por lead",
     rank: 1,
-    displayName: "Casa Lumbre",
+    displayName: "Restaurante local demo",
     metricLabel: "5,19 EUR CPL",
     trend: -13.1,
     isCurrentClient: true
@@ -597,7 +622,7 @@ export const leaderboards: LeaderboardEntry[] = [
     clientId: clients[2].id,
     category: "Mejor ROI estimado",
     rank: 1,
-    displayName: "Clinica estetica",
+    displayName: "Gimnasio demo",
     metricLabel: "4,53x estimado",
     trend: 9.3
   }
@@ -708,6 +733,63 @@ export const tasks: Task[] = [
   }
 ];
 
+export const calendarEvents: CalendarEvent[] = [
+  {
+    id: "calendar-demo-brasa-reel",
+    clientId: clients[0].id,
+    leadId: null,
+    campaignId: campaigns[0].id,
+    contentItemId: contentItems[0].id,
+    title: "Publicación REEL-001 Brasa Norte",
+    type: "Publicación reel",
+    status: "confirmed",
+    startAt: "2026-06-07T18:30:00.000+02:00",
+    endAt: "2026-06-07T19:00:00.000+02:00",
+    location: "Instagram",
+    googleMapsUrl: null,
+    googleCalendarEventId: null,
+    notes: "Publicar reel demo con CTA a WhatsApp.",
+    assignedTo: null,
+    isDemo: true
+  },
+  {
+    id: "calendar-demo-sonrisa-post",
+    clientId: clients[1].id,
+    leadId: null,
+    campaignId: campaigns[2].id,
+    contentItemId: contentItems.find((item) => item.clientId === clients[1].id)?.id ?? null,
+    title: "Revisión POST-001 Sonrisa Ibi",
+    type: "Revisión cliente",
+    status: "pending",
+    startAt: "2026-06-10T10:30:00.000+02:00",
+    endAt: "2026-06-10T11:00:00.000+02:00",
+    location: "Stats",
+    googleMapsUrl: null,
+    googleCalendarEventId: null,
+    notes: "Revisar copy y visual antes de programar.",
+    assignedTo: null,
+    isDemo: true
+  },
+  {
+    id: "calendar-demo-fitbox-car",
+    clientId: clients[2].id,
+    leadId: null,
+    campaignId: campaigns[3].id,
+    contentItemId: contentItems.find((item) => item.clientId === clients[2].id)?.id ?? null,
+    title: "Entrega CAR-001 FitBox",
+    type: "Entrega",
+    status: "pending",
+    startAt: "2026-06-11T16:00:00.000+02:00",
+    endAt: "2026-06-11T16:30:00.000+02:00",
+    location: "Stats",
+    googleMapsUrl: null,
+    googleCalendarEventId: null,
+    notes: "Preparar slides finales y CTA.",
+    assignedTo: null,
+    isDemo: true
+  }
+];
+
 export function getDemoPortalData(clientId = clients[0].id): PortalData {
   const selectedClient =
     clients.find((client) => client.id === clientId) ?? clients[0];
@@ -732,11 +814,19 @@ export function getDemoPortalData(clientId = clients[0].id): PortalData {
         item.clientId === selectedClient.id || item.visibility === "internal"
     ),
     tasks: tasks.filter((item) => item.clientId === selectedClient.id),
+    calendarEvents: calendarEvents.filter(
+      (item) => item.clientId === selectedClient.id
+    ),
     integrations: [],
     connectedAssets: [],
     syncLogs: [],
     leadEvents: []
   };
+}
+
+export function getDemoPortalDataBySlug(slug: string): PortalData | null {
+  const client = clients.find((item) => item.slug === slug && item.isDemo);
+  return client ? getDemoPortalData(client.id) : null;
 }
 
 export function getLatestMetric(clientId = clients[0].id) {
@@ -764,6 +854,7 @@ export function getAllDemoData(): PortalData {
     scores,
     alerts,
     tasks,
+    calendarEvents,
     integrations: [],
     connectedAssets: [],
     syncLogs: [],

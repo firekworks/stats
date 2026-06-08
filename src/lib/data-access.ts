@@ -1,11 +1,13 @@
 import {
   getAllDemoData,
-  getDemoPortalData
+  getDemoPortalData,
+  getDemoPortalDataBySlug as getFallbackDemoPortalDataBySlug
 } from "@/lib/demo-data";
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   Alert,
   Campaign,
+  CalendarEvent,
   Client,
   ClientScore,
   ConnectedAsset,
@@ -153,6 +155,69 @@ export async function getAdminPortalData(): Promise<PortalData> {
   });
 }
 
+export async function getDemoPortalDataBySlug(slug: string): Promise<PortalData | null> {
+  const admin = getSupabaseAdminClient();
+
+  if (!admin) {
+    return getFallbackDemoPortalDataBySlug(slug);
+  }
+
+  const { data: client } = await admin
+    .from("clients")
+    .select("*, client_subscriptions(monthly_fee, plans(name))")
+    .eq("slug", slug)
+    .eq("is_demo", true)
+    .maybeSingle<Row>();
+
+  if (!client) {
+    return getFallbackDemoPortalDataBySlug(slug);
+  }
+
+  const clientId = String(client.id);
+  const [
+    metrics,
+    campaigns,
+    content,
+    reports,
+    invoices,
+    leaderboards,
+    scores,
+    alerts,
+    tasks
+  ] = await Promise.all([
+    admin
+      .from("monthly_metrics")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("year", { ascending: false })
+      .order("month", { ascending: false }),
+    admin.from("campaigns").select("*").eq("client_id", clientId),
+    admin.from("content_items").select("*").eq("client_id", clientId),
+    admin.from("monthly_reports").select("*").eq("client_id", clientId),
+    admin.from("invoices").select("*, invoice_items(*)").eq("client_id", clientId),
+    admin.from("leaderboard_entries").select("*, leaderboards(name, metric)"),
+    admin.from("client_scores").select("*").eq("client_id", clientId),
+    admin.from("alerts").select("*").eq("client_id", clientId),
+    admin.from("tasks").select("*").eq("client_id", clientId)
+  ]);
+  const supplemental = await getSupplementalRows(admin, [clientId]);
+
+  return makePortalData({
+    clients: [client],
+    selectedClientId: clientId,
+    metrics: metrics.data ?? [],
+    campaigns: campaigns.data ?? [],
+    content: content.data ?? [],
+    reports: reports.data ?? [],
+    invoices: invoices.data ?? [],
+    leaderboards: leaderboards.data ?? [],
+    scores: scores.data ?? [],
+    alerts: alerts.data ?? [],
+    tasks: tasks.data ?? [],
+    ...supplemental
+  });
+}
+
 async function getSupplementalRows(
   supabase: Awaited<ReturnType<typeof getSupabaseServerClient>> | ReturnType<typeof getSupabaseAdminClient>,
   clientIds: string[]
@@ -163,7 +228,8 @@ async function getSupplementalRows(
     integrations: [] as Row[],
     connectedAssets: [] as Row[],
     syncLogs: [] as Row[],
-    leadEvents: [] as Row[]
+    leadEvents: [] as Row[],
+    calendarEvents: [] as Row[]
   };
 
   if (!supabase || !clientIds.length) {
@@ -176,7 +242,8 @@ async function getSupplementalRows(
     integrations,
     connectedAssets,
     syncLogs,
-    leadEvents
+    leadEvents,
+    calendarEvents
   ] = await Promise.all([
     supabase
       .from("campaign_metrics")
@@ -215,6 +282,12 @@ async function getSupplementalRows(
       )
       .in("client_id", clientIds)
       .order("occurred_at", { ascending: false })
+      .limit(80),
+    supabase
+      .from("calendar_events")
+      .select("*")
+      .or(`client_id.in.(${clientIds.join(",")}),client_id.is.null`)
+      .order("start_at", { ascending: true })
       .limit(80)
   ]);
 
@@ -224,7 +297,8 @@ async function getSupplementalRows(
     integrations: integrations.data ?? [],
     connectedAssets: connectedAssets.data ?? [],
     syncLogs: syncLogs.data ?? [],
-    leadEvents: leadEvents.data ?? []
+    leadEvents: leadEvents.data ?? [],
+    calendarEvents: calendarEvents.data ?? []
   };
 }
 
@@ -246,6 +320,7 @@ function makePortalData(input: {
   connectedAssets?: Row[];
   syncLogs?: Row[];
   leadEvents?: Row[];
+  calendarEvents?: Row[];
 }): PortalData {
   const clients = input.clients.map(mapClient);
   const selectedClient =
@@ -269,6 +344,7 @@ function makePortalData(input: {
     scores: input.scores.map(mapScore),
     alerts: input.alerts.map(mapAlert),
     tasks: input.tasks.map(mapTask),
+    calendarEvents: (input.calendarEvents ?? []).map(mapCalendarEvent),
     integrations: (input.integrations ?? []).map(mapIntegration),
     connectedAssets: (input.connectedAssets ?? []).map(mapConnectedAsset),
     syncLogs: (input.syncLogs ?? []).map(mapSyncLog),
@@ -291,6 +367,8 @@ function mapClient(row: Row): Client {
     slug: row.slug ?? row.id,
     publicName: row.public_name ?? row.name,
     legalName: row.legal_name ?? row.billing_name ?? row.name,
+    isDemo: Boolean(row.is_demo),
+    demoLabel: row.demo_label ?? null,
     leadId: row.lead_id ?? null,
     source: row.source ?? null,
     taxId: row.tax_id ?? null,
@@ -306,6 +384,21 @@ function mapClient(row: Row): Client {
           ? "paused"
           : "active",
     city: row.city ?? "",
+    logoUrl: row.logo_url ?? null,
+    brandColors: Array.isArray(row.brand_colors) ? row.brand_colors : [],
+    brandVoice: row.brand_voice ?? null,
+    targetAudience: row.target_audience ?? null,
+    objective: row.objective ?? null,
+    services: Array.isArray(row.services) ? row.services : [],
+    driveFolderId: row.drive_folder_id ?? null,
+    convertedFromLead: Boolean(row.converted_from_lead),
+    conversionDate: row.conversion_date ?? null,
+    originalLeadScore:
+      row.original_lead_score === null || typeof row.original_lead_score === "undefined"
+        ? null
+        : Number(row.original_lead_score),
+    originalLeadCity: row.original_lead_city ?? null,
+    originalLeadSector: row.original_lead_sector ?? null,
     averageTicket: Number(row.average_ticket ?? 0),
     allowPublicLeaderboardName: Boolean(
       row.allow_public_leaderboard_name ?? row.show_in_leaderboard
@@ -340,7 +433,10 @@ function mapMetric(row: Row): MonthlyMetric {
     leads: Number(row.leads ?? 0),
     bookings: Number(row.bookings ?? 0),
     estimatedRevenue: Number(row.estimated_revenue ?? 0),
-    realRevenue: row.real_revenue === null ? null : Number(row.real_revenue),
+    realRevenue:
+      row.real_revenue === null || typeof row.real_revenue === "undefined"
+        ? null
+        : Number(row.real_revenue),
     adSpend: Number(row.ad_spend ?? 0),
     serviceFee: Number(row.service_fee ?? 0),
     extras: Number(row.extras ?? row.extra_costs ?? 0),
@@ -352,7 +448,10 @@ function mapMetric(row: Row): MonthlyMetric {
     ),
     estimatedRoi:
       row.estimated_roi === null ? null : Number(row.estimated_roi ?? 0),
-    realRoi: row.real_roi === null ? null : Number(row.real_roi),
+    realRoi:
+      row.real_roi === null || typeof row.real_roi === "undefined"
+        ? null
+        : Number(row.real_roi),
     roiMode: row.roi_mode ?? row.roi_type,
     bestContentId: row.best_content_id,
     worstContentId: row.worst_content_id,
@@ -373,6 +472,15 @@ function mapCampaign(row: Row, summary?: CampaignMetricSummary): Campaign {
     name: row.name,
     platform: row.platform,
     objective: row.objective,
+    campaignType: row.campaign_type ?? null,
+    offer: row.offer ?? null,
+    targetAudience: row.target_audience ?? null,
+    funnelStage: row.funnel_stage ?? null,
+    funnelStagePlan: row.funnel_stage_plan ?? null,
+    recommendations: row.recommendations ?? null,
+    launchChecklist: row.launch_checklist ?? null,
+    isDemo: Boolean(row.is_demo),
+    metricMode: row.metric_mode ?? null,
     budget,
     spend,
     startDate: row.start_date,
@@ -388,10 +496,17 @@ function mapCampaign(row: Row, summary?: CampaignMetricSummary): Campaign {
     messages: Number(summary?.messages ?? row.messages ?? 0),
     conversions: Number(summary?.conversions ?? row.conversions ?? 0),
     costPerLead: Number(summary?.costPerLead ?? row.cost_per_lead ?? 0),
-    roas: row.roas === null ? null : Number(row.roas),
+    roas:
+      row.roas === null || typeof row.roas === "undefined"
+        ? null
+        : Number(row.roas),
     visibleSummary: row.visible_summary ?? row.client_visible_summary ?? "",
     source: row.source ?? null,
     syncStatus: row.sync_status ?? null,
+    metaAdAccountId: row.meta_ad_account_id ?? null,
+    metaCampaignId: row.meta_campaign_id ?? null,
+    metaAdsetId: row.meta_adset_id ?? null,
+    metaAdId: row.meta_ad_id ?? null,
     externalCampaignId: row.external_campaign_id ?? row.external_id ?? null,
     externalAdAccountId: row.external_ad_account_id ?? row.external_account_id ?? null,
     plannedBudget: budget,
@@ -407,13 +522,33 @@ function mapContent(row: Row, summary?: ContentMetricSummary): ContentItem {
   return {
     id: row.id,
     clientId: row.client_id,
+    campaignId: row.campaign_id ?? null,
+    contentCode: row.content_code ?? null,
     title: row.title,
     type: row.type,
     platform: row.platform,
+    objective: row.objective ?? null,
+    funnelStage: row.funnel_stage ?? null,
+    hook: row.hook ?? null,
+    caption: row.caption ?? null,
+    visualBrief: row.visual_brief ?? null,
+    cta: row.cta ?? null,
+    dueDate: row.due_date ?? null,
     publishDate: row.publish_date ?? row.published_at,
     status: row.status,
     url: row.url ?? "#",
     storagePath: row.storage_path,
+    driveFolderId: row.drive_folder_id ?? null,
+    googleDriveFolderId: row.google_drive_folder_id ?? null,
+    canvaDesignId: row.canva_design_id ?? null,
+    canvaEditUrl: row.canva_edit_url ?? null,
+    canvaViewUrl: row.canva_view_url ?? null,
+    metaPostId: row.meta_post_id ?? null,
+    previewImageUrl: row.preview_image_url ?? null,
+    previewData: row.preview_data ?? null,
+    notes: row.notes ?? row.internal_notes ?? null,
+    assignedTo: row.assigned_to ?? null,
+    isDemo: Boolean(row.is_demo),
     views: Number(summary?.views ?? row.views ?? 0),
     reach: Number(summary?.reach ?? row.reach ?? 0),
     impressions: Number(summary?.impressions ?? row.impressions ?? 0),
@@ -590,6 +725,28 @@ function mapLeadEvent(row: Row): LeadEvent {
   };
 }
 
+function mapCalendarEvent(row: Row): CalendarEvent {
+  return {
+    id: row.id,
+    clientId: row.client_id ?? null,
+    leadId: row.lead_id ?? null,
+    campaignId: row.campaign_id ?? null,
+    contentItemId: row.content_item_id ?? null,
+    title: row.title,
+    type: row.type,
+    status: row.status,
+    startAt: row.start_at,
+    endAt: row.end_at ?? null,
+    location: row.location ?? null,
+    googleMapsUrl: row.google_maps_url ?? null,
+    googleCalendarEventId: row.google_calendar_event_id ?? null,
+    notes: row.notes ?? null,
+    assignedTo: row.assigned_to ?? null,
+    createdBy: row.created_by ?? null,
+    isDemo: Boolean(row.is_demo)
+  };
+}
+
 type CampaignMetricSummary = {
   spend: number;
   impressions: number;
@@ -754,6 +911,7 @@ function makeEmptyPortalData(clientId = "no-client"): PortalData {
     scores: [],
     alerts: [],
     tasks: [],
+    calendarEvents: [],
     integrations: [],
     connectedAssets: [],
     syncLogs: [],

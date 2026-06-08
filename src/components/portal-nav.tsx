@@ -3,6 +3,7 @@
 import {
   BarChart3,
   ClipboardList,
+  CalendarDays,
   FileBarChart,
   FileText,
   Gauge,
@@ -33,6 +34,8 @@ export type PortalNavIcon =
   | "dashboard"
   | "clients"
   | "access"
+  | "calendar"
+  | "demos"
   | "score"
   | "integrations"
   | "settings";
@@ -55,6 +58,8 @@ const icons: Record<PortalNavIcon, LucideIcon> = {
   dashboard: Gauge,
   clients: UsersRound,
   access: KeyRound,
+  calendar: CalendarDays,
+  demos: WandSparkles,
   score: ShieldCheck,
   integrations: WandSparkles,
   settings: Settings

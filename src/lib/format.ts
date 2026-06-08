@@ -68,11 +68,16 @@ export function statusLabel(status: string) {
     connected: "Conectada",
     revoked: "Revocada",
     pending: "Pendiente",
+    confirmed: "Confirmado",
     error: "Error",
     disconnected: "Desconectada",
     open: "Abierta",
     in_progress: "En curso",
-    done: "Hecha"
+    done: "Hecha",
+    planned: "Planificado",
+    approved: "Aprobado",
+    promoted: "Promocionado",
+    reported: "Reportado"
   };
 
   return labels[status] ?? status;

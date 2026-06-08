@@ -585,7 +585,18 @@ function formatDateShort(value: string) {
 }
 
 export function AdminDashboard({ data }: { data: PortalData }) {
-  const activeClients = data.clients.filter((client) => client.status === "active");
+  const realClients = data.clients.filter((client) => !client.isDemo);
+  const activeClients = realClients.filter((client) => client.status === "active");
+  const demoClients = data.clients.filter((client) => client.isDemo);
+  const pendingContent = data.content.filter((item) =>
+    ["idea", "recorded", "editing", "pending_approval", "scheduled"].includes(
+      item.status
+    )
+  );
+  const weekEvents = data.calendarEvents.slice(0, 7);
+  const connectedIntegrations = data.integrations.filter(
+    (integration) => integration.status === "connected"
+  );
   const totalReach = data.metrics.reduce((sum, item) => sum + item.reach, 0);
   const totalLeads = data.metrics.reduce((sum, item) => sum + item.leads, 0);
   const totalManaged = data.metrics.reduce(
@@ -605,7 +616,7 @@ export function AdminDashboard({ data }: { data: PortalData }) {
           icon={Target}
           label="Clientes activos"
           value={String(activeClients.length)}
-          helper={`${data.clients.length} en cartera`}
+          helper={`${realClients.length} reales en cartera`}
           tone="blue"
         />
         <MetricCard
@@ -627,6 +638,37 @@ export function AdminDashboard({ data }: { data: PortalData }) {
           label="Inversion gestionada"
           value={formatCurrency(totalManaged)}
           helper="Ads + fee + extras"
+          tone="orange"
+        />
+      </section>
+
+      <section className="grid grid-4">
+        <MetricCard
+          icon={Sparkles}
+          label="Demos comerciales"
+          value={String(demoClients.length)}
+          helper="Portales públicos anonimizados"
+          tone="blue"
+        />
+        <MetricCard
+          icon={FileBarChart}
+          label="Contenido pendiente"
+          value={String(pendingContent.length)}
+          helper="Ideas, edición, aprobación o programación"
+          tone="mint"
+        />
+        <MetricCard
+          icon={CalendarClock}
+          label="Agenda semanal"
+          value={String(weekEvents.length)}
+          helper="Eventos próximos en calendario"
+          tone="green"
+        />
+        <MetricCard
+          icon={CheckCircle2}
+          label="Integraciones"
+          value={String(connectedIntegrations.length)}
+          helper="Activos conectados a APIs"
           tone="orange"
         />
       </section>

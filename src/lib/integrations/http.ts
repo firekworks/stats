@@ -5,7 +5,7 @@ import { canAccessClient, getRequestProfile } from "@/lib/api-auth";
 import type { RequestProfile } from "@/lib/api-auth";
 import type { Role } from "@/lib/types";
 
-const writeRoles = new Set<Role>(["admin", "sales"]);
+const writeRoles = new Set<Role>(["admin"]);
 
 export type InternalAuthResult =
   | { profile: RequestProfile }
@@ -29,7 +29,7 @@ export async function requireInternalRequest({
   if (!allowed) {
     return {
       response: NextResponse.json(
-        { error: allowViewer ? "Rol interno requerido" : "Rol admin o ventas requerido" },
+        { error: allowViewer ? "Rol interno requerido" : "Rol admin requerido" },
         { status: 403 }
       )
     };

@@ -39,7 +39,7 @@ export async function getRequestProfile(): Promise<RequestProfile | null> {
   }
 
   const role = profile.role as Role;
-  const isInternal = ["admin", "sales", "viewer"].includes(role);
+  const isInternal = ["admin", "team", "sales", "viewer"].includes(role);
 
   if (isInternal) {
     return { admin, userId: user.id, role, clientId: null, isInternal };
