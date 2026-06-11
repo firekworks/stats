@@ -417,6 +417,8 @@ function mapClient(row: Row): Client {
     services: Array.isArray(row.services) ? row.services : [],
     driveFolderId: row.drive_folder_id ?? null,
     driveFolderUrl: row.drive_folder_url ?? null,
+    canvaFolderUrl: row.canva_folder_url ?? null,
+    canvaAccountUrl: row.canva_account_url ?? null,
     portalAccessToken: row.portal_access_token ?? null,
     convertedFromLead: Boolean(row.converted_from_lead),
     conversionDate: row.conversion_date ?? null,

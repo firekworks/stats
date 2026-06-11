@@ -32,6 +32,8 @@ export async function PATCH(
     monthly_budget: numberOrNull(body.adBudget) ?? pack.ads,
     drive_folder_id: extractDriveFolderId(driveValue),
     drive_folder_url: driveValue?.startsWith("http") ? driveValue : null,
+    canva_folder_url: string(body.canvaFolderUrl),
+    canva_account_url: string(body.canvaAccountUrl),
     instagram_url: string(body.instagramUrl),
     facebook_url: string(body.facebookUrl),
     google_business_profile_url: string(body.googleBusinessProfileUrl),

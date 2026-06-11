@@ -8,8 +8,16 @@ export const dynamic = "force-dynamic";
 
 type GenerateBody = {
   clientId?: string;
+  adBudget?: string;
+  audience?: string;
+  mainPain?: string;
+  month?: string;
   objective?: string;
+  offer?: string;
+  pack?: "390" | "590";
   count?: number;
+  tone?: string;
+  visualStyle?: string;
 };
 
 export async function POST(request: Request) {
@@ -35,13 +43,22 @@ export async function POST(request: Request) {
   }
 
   const client = mapIdeaClient(row);
+  const campaignDate = parseCampaignMonth(body.month);
   const plan = generateMonthlyCampaignPlan({
     client,
-    objective: body.objective
+    date: campaignDate,
+    objective: body.objective,
+    packPrice: body.pack === "590" ? 590 : body.pack === "390" ? 390 : null,
+    offer: body.offer,
+    mainPain: body.mainPain,
+    targetAudience: body.audience,
+    tone: body.tone,
+    visualStyle: body.visualStyle,
+    adBudget: body.adBudget
   });
-  const ideas = plan.pieces.slice(0, Math.min(Math.max(Number(body.count ?? plan.pieces.length), 1), 18));
-  const monthStart = currentMonthStart();
-  const monthEnd = currentMonthEnd();
+  const ideas = plan.pieces.slice(0, Math.min(Math.max(Number(body.count ?? plan.pieces.length), 1), 28));
+  const monthStart = monthStartFor(campaignDate);
+  const monthEnd = monthEndFor(campaignDate);
   const { data: campaign, error: campaignError } = await auth.profile.admin
     .from("campaigns")
     .insert({
@@ -225,14 +242,29 @@ function mapIdeaClient(row: Record<string, unknown>): Client {
   };
 }
 
-function currentMonthStart() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString().slice(0, 10);
+function parseCampaignMonth(value?: string) {
+  if (!value) return new Date();
+  const [yearText, monthText] = value.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+
+  if (!Number.isFinite(year) || !Number.isFinite(month)) {
+    return new Date();
+  }
+
+  return new Date(Date.UTC(year, month - 1, 1));
 }
 
-function currentMonthEnd() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0)).toISOString().slice(0, 10);
+function monthStartFor(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))
+    .toISOString()
+    .slice(0, 10);
+}
+
+function monthEndFor(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0))
+    .toISOString()
+    .slice(0, 10);
 }
 
 function campaignObjective(value: string) {

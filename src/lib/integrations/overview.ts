@@ -27,6 +27,16 @@ export type ConnectedAssetOverviewRow = {
   lastSyncedAt: string | null;
 };
 
+export type IntegrationEnvGroup = {
+  id: string;
+  title: string;
+  description: string;
+  required: string[];
+  optional: string[];
+  missing: string[];
+  ready: boolean;
+};
+
 type Row = Record<string, unknown>;
 
 export async function getIntegrationOverview(clientIds: string[]) {
@@ -60,6 +70,71 @@ export async function getIntegrationOverview(clientIds: string[]) {
     integrations: ((integrations.data ?? []) as Row[]).map(mapIntegration),
     assets: ((assets.data ?? []) as Row[]).map(mapAsset)
   };
+}
+
+export function getIntegrationEnvChecklist(): IntegrationEnvGroup[] {
+  return [
+    envGroup({
+      id: "google-calendar",
+      title: "Google Calendar",
+      description: "OAuth, calendar.events y creación server-side de eventos.",
+      required: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "ENCRYPTION_KEY"],
+      optional: ["GOOGLE_CALENDAR_ID"]
+    }),
+    envGroup({
+      id: "google-drive",
+      title: "Google Drive",
+      description: "Lectura de carpetas por cliente y enlace manual como fallback.",
+      required: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI", "ENCRYPTION_KEY"],
+      optional: ["GOOGLE_DRIVE_ROOT_FOLDER_ID"]
+    }),
+    envGroup({
+      id: "canva",
+      title: "Canva",
+      description: "OAuth futuro; hoy se guardan enlaces manuales por cliente y pieza.",
+      required: ["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"],
+      optional: ["CANVA_REDIRECT_URI"]
+    }),
+    envGroup({
+      id: "meta",
+      title: "Meta Ads + Instagram + Facebook",
+      description: "OAuth Meta, selección de activos y sincronización de campañas/contenido.",
+      required: ["META_APP_ID", "META_APP_SECRET", "META_GRAPH_VERSION", "NEXT_PUBLIC_APP_URL", "ENCRYPTION_KEY"],
+      optional: ["META_BUSINESS_ID", "META_WEBHOOK_VERIFY_TOKEN"]
+    }),
+    envGroup({
+      id: "whatsapp",
+      title: "WhatsApp Cloud API",
+      description: "Webhooks y eventos de mensajes para futuras métricas de conversación.",
+      required: ["WHATSAPP_BUSINESS_ACCOUNT_ID", "WHATSAPP_WEBHOOK_VERIFY_TOKEN"],
+      optional: ["WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN"]
+    }),
+    envGroup({
+      id: "metricool",
+      title: "Metricool",
+      description: "Preparado como conector de lectura cuando se active la fuente externa.",
+      required: ["METRICOOL_API_KEY"],
+      optional: []
+    }),
+    envGroup({
+      id: "generator",
+      title: "Generador interno",
+      description: "Playbooks locales activos; una clave IA permite mejorar copies más adelante.",
+      required: [],
+      optional: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"],
+      missing: process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY
+        ? []
+        : ["OPENAI_API_KEY o ANTHROPIC_API_KEY"],
+      ready: true
+    }),
+    envGroup({
+      id: "pdf",
+      title: "PDFs e informes",
+      description: "Facturas e informes se generan en backend sin exponer datos fiscales.",
+      required: [],
+      optional: ["NEXT_PUBLIC_APP_URL"]
+    })
+  ];
 }
 
 function mapIntegration(row: Row): IntegrationOverviewRow {
@@ -97,4 +172,22 @@ function string(value: unknown) {
 
 function nullableString(value: unknown) {
   return typeof value === "string" && value ? value : null;
+}
+
+function envGroup(input: {
+  id: string;
+  title: string;
+  description: string;
+  required: string[];
+  optional: string[];
+  missing?: string[];
+  ready?: boolean;
+}): IntegrationEnvGroup {
+  const missing = input.missing ?? input.required.filter((name) => !process.env[name]);
+
+  return {
+    ...input,
+    missing,
+    ready: input.ready ?? missing.length === 0
+  };
 }

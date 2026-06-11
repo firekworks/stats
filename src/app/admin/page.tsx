@@ -10,7 +10,7 @@ export default async function AdminHomePage() {
       <PageHeader
         eyebrow="Admin Firekworks"
         title="Dashboard"
-        description="Prioridades de hoy: eventos, aprobaciones, cobros y clientes con alerta."
+        description="Resumen operativo: clientes, producción, campañas, cobros y próximas acciones."
       />
       <AdminDashboard data={data} />
     </>

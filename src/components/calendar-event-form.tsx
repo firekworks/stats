@@ -1,26 +1,40 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { CalendarPlus, Loader2 } from "lucide-react";
 import type { Campaign, Client, ContentItem } from "@/lib/types";
 
 type FormState = "idle" | "loading" | "done" | "error";
+type CalendarKind = "task" | "event" | "content";
+
+const subtypeOptions: Record<CalendarKind, string[]> = {
+  task: ["Aprobación", "Entrega material", "Revisión interna", "Factura", "Seguimiento"],
+  event: ["Reunión", "Grabación", "Entrega", "Llamada", "Google Business"],
+  content: ["Publicación", "Story", "Reel", "Carrusel", "Anuncio"]
+};
 
 export function CalendarEventForm({
   clients,
   campaigns,
-  content
+  content,
+  initialDate
 }: {
   clients: Client[];
   campaigns: Campaign[];
   content: ContentItem[];
+  initialDate?: string;
 }) {
   const firstClient = clients[0]?.id ?? "";
   const [clientId, setClientId] = useState(firstClient);
   const [title, setTitle] = useState("");
-  const [type, setType] = useState("Publicación");
-  const [startAt, setStartAt] = useState(defaultDateTime());
-  const [endAt, setEndAt] = useState("");
+  const [kind, setKind] = useState<CalendarKind>("content");
+  const [subtype, setSubtype] = useState("Publicación");
+  const [status, setStatus] = useState("pending");
+  const [startDate, setStartDate] = useState(() => defaultDateParts(initialDate).date);
+  const [startTime, setStartTime] = useState(() => defaultDateParts(initialDate).time);
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [campaignId, setCampaignId] = useState("");
   const [contentItemId, setContentItemId] = useState("");
   const [notes, setNotes] = useState("");
   const [syncGoogle, setSyncGoogle] = useState(false);
@@ -35,9 +49,22 @@ export function CalendarEventForm({
     [clientId, campaigns]
   );
 
+  useEffect(() => {
+    if (!initialDate) return;
+    setStartDate(initialDate);
+    setEndDate((current) => current || initialDate);
+  }, [initialDate]);
+
+  useEffect(() => {
+    const nextSubtype = subtypeOptions[kind][0];
+    setSubtype(nextSubtype);
+  }, [kind]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setState("loading");
+    const startAt = combineLocalDateTime(startDate, startTime);
+    const endAt = endDate && endTime ? combineLocalDateTime(endDate, endTime) : null;
 
     const response = await fetch("/api/admin/calendar/events", {
       method: "POST",
@@ -45,15 +72,14 @@ export function CalendarEventForm({
       body: JSON.stringify({
         clientId,
         title,
-        type,
+        type: subtype,
+        status,
         startAt,
-        endAt: endAt || null,
+        endAt,
         contentItemId: contentItemId || null,
-        notes: notes || null,
+        notes: buildNotes(kind, notes),
         syncGoogle,
-        campaignId:
-          filteredCampaigns.find((campaign) => campaign.clientId === clientId)
-            ?.id ?? null
+        campaignId: campaignId || null
       })
     }).catch(() => null);
 
@@ -65,6 +91,8 @@ export function CalendarEventForm({
     setState("done");
     setTitle("");
     setNotes("");
+    setCampaignId("");
+    setContentItemId("");
   }
 
   return (
@@ -81,15 +109,30 @@ export function CalendarEventForm({
           </select>
         </label>
         <label className="field">
-          <span>Tipo</span>
-          <select value={type} onChange={(event) => setType(event.target.value)}>
-            <option>Publicación</option>
-            <option>Grabación</option>
-            <option>Edición</option>
-            <option>Revisión</option>
-            <option>Entrega</option>
-            <option>Reunión</option>
-            <option>Factura</option>
+          <span>Clase</span>
+          <select value={kind} onChange={(event) => setKind(event.target.value as CalendarKind)}>
+            <option value="content">Contenido</option>
+            <option value="event">Evento</option>
+            <option value="task">Tarea</option>
+          </select>
+        </label>
+      </div>
+      <div className="form-grid">
+        <label className="field">
+          <span>Subtipo</span>
+          <select value={subtype} onChange={(event) => setSubtype(event.target.value)}>
+            {subtypeOptions[kind].map((option) => (
+              <option key={option}>{option}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Estado</span>
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="pending">Pendiente</option>
+            <option value="confirmed">Confirmado</option>
+            <option value="done">Hecho</option>
+            <option value="cancelled">Cancelado</option>
           </select>
         </label>
       </div>
@@ -104,24 +147,57 @@ export function CalendarEventForm({
       </label>
       <div className="form-grid">
         <label className="field">
-          <span>Fecha y hora</span>
+          <span>Fecha inicio</span>
           <input
-            type="datetime-local"
-            value={startAt}
-            onChange={(event) => setStartAt(event.target.value)}
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
             required
           />
         </label>
         <label className="field">
-          <span>Fin</span>
+          <span>Hora inicio</span>
           <input
-            type="datetime-local"
-            value={endAt}
-            onChange={(event) => setEndAt(event.target.value)}
+            type="time"
+            value={startTime}
+            onChange={(event) => setStartTime(event.target.value)}
+            required
           />
         </label>
       </div>
       <div className="form-grid">
+        <label className="field">
+          <span>Fecha fin</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+          />
+        </label>
+        <label className="field">
+          <span>Hora fin</span>
+          <input
+            type="time"
+            value={endTime}
+            onChange={(event) => setEndTime(event.target.value)}
+          />
+        </label>
+      </div>
+      <div className="form-grid">
+        <label className="field">
+          <span>Campaña vinculada</span>
+          <select
+            value={campaignId}
+            onChange={(event) => setCampaignId(event.target.value)}
+          >
+            <option value="">Sin campaña</option>
+            {filteredCampaigns.map((campaign) => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field">
           <span>Pieza vinculada</span>
           <select
@@ -136,23 +212,23 @@ export function CalendarEventForm({
             ))}
           </select>
         </label>
-        <label className="check-field">
-          <input
-            checked={syncGoogle}
-            onChange={(event) => setSyncGoogle(event.target.checked)}
-            type="checkbox"
-          />
-          <span>Sincronizar con Google Calendar</span>
-        </label>
       </div>
       <label className="field">
-        <span>Descripción</span>
+        <span>Descripción interna</span>
         <textarea
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
           rows={3}
           placeholder="Notas internas, enlace Drive/Canva o contexto para el equipo."
         />
+      </label>
+      <label className="check-field">
+        <input
+          checked={syncGoogle}
+          onChange={(event) => setSyncGoogle(event.target.checked)}
+          type="checkbox"
+        />
+        <span>Sincronizar con Google Calendar si OAuth está conectado</span>
       </label>
       <button className="button" type="submit" disabled={state === "loading"}>
         {state === "loading" ? (
@@ -183,8 +259,36 @@ export function CalendarEventForm({
   );
 }
 
-function defaultDateTime() {
-  const date = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  date.setMinutes(0, 0, 0);
-  return date.toISOString().slice(0, 16);
+function defaultDateParts(initialDate?: string) {
+  const date = initialDate ? parseDateKey(initialDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+  date.setHours(10, 0, 0, 0);
+
+  return {
+    date: [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-"),
+    time: "10:00"
+  };
+}
+
+function parseDateKey(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+function combineLocalDateTime(date: string, time: string) {
+  return `${date}T${time || "10:00"}`;
+}
+
+function buildNotes(kind: CalendarKind, notes: string) {
+  const prefix =
+    kind === "task"
+      ? "Clase: tarea"
+      : kind === "event"
+        ? "Clase: evento"
+        : "Clase: contenido";
+
+  return [prefix, notes.trim()].filter(Boolean).join("\n\n");
 }

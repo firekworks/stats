@@ -1,20 +1,167 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { FilePlus2, FolderOpen, Loader2, Plus, ReceiptText, Save } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  CheckCircle2,
+  FilePlus2,
+  FolderOpen,
+  Loader2,
+  Plus,
+  ReceiptText,
+  Save,
+  Search
+} from "lucide-react";
 import type { Campaign, Client } from "@/lib/types";
 
 type RequestState = "idle" | "loading" | "done" | "error";
+type LeadCandidate = {
+  id: string;
+  name: string;
+  sector: string;
+  city: string;
+  phone: string;
+  website: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  whatsappUrl: string;
+  googleMapsUrl: string;
+  contactName: string;
+  score: number;
+  status: string;
+  notes: string;
+};
+
+type ClientDraft = {
+  publicName: string;
+  industry: string;
+  city: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  website: string;
+  pack: "390" | "590";
+  status: "active" | "pending" | "paused";
+  type: "real" | "demo";
+  driveFolderId: string;
+  canvaFolderUrl: string;
+  canvaAccountUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  googleBusinessProfileUrl: string;
+  whatsappUrl: string;
+  legalName: string;
+  taxId: string;
+  address: string;
+  monthlyFee: string;
+  adBudget: string;
+  internalNotes: string;
+};
+
+const emptyDraft: ClientDraft = {
+  publicName: "",
+  industry: "",
+  city: "",
+  contactName: "",
+  phone: "",
+  email: "",
+  website: "",
+  pack: "390",
+  status: "active",
+  type: "real",
+  driveFolderId: "",
+  canvaFolderUrl: "",
+  canvaAccountUrl: "",
+  instagramUrl: "",
+  facebookUrl: "",
+  googleBusinessProfileUrl: "",
+  whatsappUrl: "",
+  legalName: "",
+  taxId: "",
+  address: "",
+  monthlyFee: "",
+  adBudget: "",
+  internalNotes: ""
+};
 
 export function NewClientForm() {
   const [state, setState] = useState<RequestState>("idle");
   const [message, setMessage] = useState("");
+  const [origin, setOrigin] = useState<"manual" | "lead">("manual");
+  const [draft, setDraft] = useState<ClientDraft>(emptyDraft);
+  const [leadQuery, setLeadQuery] = useState("");
+  const [leadResults, setLeadResults] = useState<LeadCandidate[]>([]);
+  const [selectedLead, setSelectedLead] = useState<LeadCandidate | null>(null);
+  const [leadMessage, setLeadMessage] = useState("");
+  const [leadLoading, setLeadLoading] = useState(false);
+
+  const resolvedPlan = useMemo(() => {
+    if (draft.pack === "590") {
+      return {
+        ads: draft.adBudget || "150",
+        fee: draft.monthlyFee || "590",
+        name: "Pack 590 - Crecimiento local"
+      };
+    }
+
+    return {
+      ads: draft.adBudget || "90",
+      fee: draft.monthlyFee || "390",
+      name: "Pack 390 - Base local"
+    };
+  }, [draft.adBudget, draft.monthlyFee, draft.pack]);
+
+  useEffect(() => {
+    if (origin !== "lead" || leadQuery.trim().length < 2) {
+      setLeadResults([]);
+      setLeadMessage("");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLeadLoading(true);
+      const response = await fetch(
+        `/api/admin/leads/search?q=${encodeURIComponent(leadQuery)}`,
+        { signal: controller.signal }
+      ).catch(() => null);
+
+      setLeadLoading(false);
+
+      if (!response?.ok) {
+        setLeadMessage("No se pudieron buscar leads.");
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        leads?: LeadCandidate[];
+        missing?: string[];
+        error?: string;
+      };
+
+      setLeadResults(payload.leads ?? []);
+      setLeadMessage(
+        payload.missing?.length
+          ? `Faltan variables: ${payload.missing.join(", ")}`
+          : payload.error ?? ""
+      );
+    }, 220);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [leadQuery, origin]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setState("loading");
     setMessage("");
     const form = new FormData(event.currentTarget);
+    form.set("origin", origin);
+    if (selectedLead) form.set("leadId", selectedLead.id);
+    form.set("planName", resolvedPlan.name);
+    form.set("monthlyFee", resolvedPlan.fee);
+    form.set("adBudget", resolvedPlan.ads);
     const response = await fetch("/api/admin/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -28,66 +175,202 @@ export function NewClientForm() {
     }
 
     setState("done");
-    setMessage("Cliente creado. Recarga la cartera para verlo en la lista.");
+    const payload = (await response.json().catch(() => ({}))) as { reused?: boolean };
+    setMessage(
+      payload.reused
+        ? "Este lead ya estaba convertido. Abre su ficha desde la lista."
+        : "Cliente creado. Recarga la cartera para verlo en la lista."
+    );
     event.currentTarget.reset();
+    setDraft(emptyDraft);
+    setSelectedLead(null);
+  }
+
+  function updateDraft<K extends keyof ClientDraft>(key: K, value: ClientDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function selectLead(lead: LeadCandidate) {
+    setSelectedLead(lead);
+    setDraft((current) => ({
+      ...current,
+      publicName: lead.name,
+      industry: lead.sector,
+      city: lead.city,
+      contactName: lead.contactName,
+      phone: lead.phone,
+      website: lead.website,
+      instagramUrl: lead.instagramUrl,
+      facebookUrl: lead.facebookUrl,
+      googleBusinessProfileUrl: lead.googleMapsUrl,
+      whatsappUrl: lead.whatsappUrl,
+      internalNotes: lead.notes
+    }));
   }
 
   return (
-    <details className="inline-form">
+    <details className="inline-form client-create-panel">
       <summary>
         <Plus size={16} />
         Nuevo cliente
       </summary>
       <form className="form mt-4" onSubmit={submit}>
-        <div className="form-grid">
-          <Field name="publicName" label="Nombre comercial" required />
-          <Field name="industry" label="Sector" />
-          <Field name="city" label="Ciudad" />
-          <Field name="contactName" label="Contacto" />
-          <Field name="phone" label="Teléfono" />
-          <Field name="email" label="Email" type="email" />
-          <label className="field">
-            <span>Pack</span>
-            <select name="pack" defaultValue="390">
-              <option value="390">Pack 390 - Base local</option>
-              <option value="590">Pack 590 - Crecimiento local</option>
-            </select>
-          </label>
+        <div className="new-client-grid">
+          <aside className="client-live-preview">
+            <span className="eyebrow">Ficha previa</span>
+            <strong>{draft.publicName || "Nuevo cliente"}</strong>
+            <p>
+              {(draft.industry || "Sector pendiente")} ·{" "}
+              {draft.city || "Ciudad pendiente"}
+            </p>
+            <div className="preview-lines">
+              <span>{resolvedPlan.name}</span>
+              <span>{draft.contactName || "Contacto pendiente"}</span>
+              <span>{draft.phone || draft.email || "Sin contacto todavía"}</span>
+            </div>
+            {selectedLead ? (
+              <div className="notice-card notice-success">
+                <CheckCircle2 size={17} />
+                <span>
+                  Lead seleccionado: {selectedLead.status} · score{" "}
+                  {selectedLead.score || 0}
+                </span>
+              </div>
+            ) : null}
+          </aside>
+
+          <section className="new-client-form-body">
+            <div className="form-grid">
+              <label className="field">
+                <span>Origen</span>
+                <select
+                  name="origin"
+                  onChange={(event) => setOrigin(event.target.value as "manual" | "lead")}
+                  value={origin}
+                >
+                  <option value="manual">Crear manualmente</option>
+                  <option value="lead">Convertir desde Leads</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Pack</span>
+                <select
+                  name="pack"
+                  onChange={(event) => updateDraft("pack", event.target.value as "390" | "590")}
+                  value={draft.pack}
+                >
+                  <option value="390">Pack 390 - Base local</option>
+                  <option value="590">Pack 590 - Crecimiento local</option>
+                </select>
+              </label>
+            </div>
+
+            {origin === "lead" ? (
+              <div className="lead-picker">
+                <label className="field">
+                  <span>Buscar lead ganado</span>
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6e6e73]"
+                      size={17}
+                    />
+                    <input
+                      className="lead-search-input"
+                      onChange={(event) => setLeadQuery(event.target.value)}
+                      placeholder="Nombre, ciudad o sector"
+                      type="search"
+                      value={leadQuery}
+                    />
+                  </div>
+                </label>
+                {leadLoading ? (
+                  <span className="form-message">Buscando leads ganados...</span>
+                ) : null}
+                {leadMessage ? <span className="form-message form-message-error">{leadMessage}</span> : null}
+                {leadResults.length ? (
+                  <div className="lead-result-list">
+                    {leadResults.map((lead) => (
+                      <button
+                        className={selectedLead?.id === lead.id ? "lead-result lead-result-active" : "lead-result"}
+                        key={lead.id}
+                        onClick={() => selectLead(lead)}
+                        type="button"
+                      >
+                        <strong>{lead.name}</strong>
+                        <span>
+                          {lead.sector} · {lead.city} · {lead.status}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="form-grid">
+              <DraftField draftKey="publicName" label="Nombre comercial" required update={updateDraft} value={draft.publicName} />
+              <DraftField draftKey="industry" label="Sector" update={updateDraft} value={draft.industry} />
+              <DraftField draftKey="city" label="Ciudad" update={updateDraft} value={draft.city} />
+              <DraftField draftKey="contactName" label="Contacto" update={updateDraft} value={draft.contactName} />
+              <DraftField draftKey="phone" label="Teléfono" update={updateDraft} value={draft.phone} />
+              <DraftField draftKey="email" label="Email" type="email" update={updateDraft} value={draft.email} />
+              <DraftField draftKey="website" label="Web" update={updateDraft} value={draft.website} />
+              <DraftField draftKey="whatsappUrl" label="WhatsApp URL" update={updateDraft} value={draft.whatsappUrl} />
+            </div>
+            <div className="form-grid">
+              <label className="field">
+                <span>Estado</span>
+                <select
+                  name="status"
+                  onChange={(event) => updateDraft("status", event.target.value as ClientDraft["status"])}
+                  value={draft.status}
+                >
+                  <option value="active">Activo</option>
+                  <option value="pending">Pendiente datos fiscales</option>
+                  <option value="paused">Pausado</option>
+                </select>
+              </label>
+              <label className="field">
+                <span>Tipo</span>
+                <select
+                  name="type"
+                  onChange={(event) => updateDraft("type", event.target.value as ClientDraft["type"])}
+                  value={draft.type}
+                >
+                  <option value="real">Real</option>
+                  <option value="demo">Demo</option>
+                </select>
+              </label>
+              <DraftField draftKey="driveFolderId" label="Carpeta Drive vinculada" update={updateDraft} value={draft.driveFolderId} />
+              <DraftField draftKey="canvaFolderUrl" label="Carpeta Canva" update={updateDraft} value={draft.canvaFolderUrl} />
+              <DraftField draftKey="canvaAccountUrl" label="Cuenta/Brand Canva" update={updateDraft} value={draft.canvaAccountUrl} />
+              <DraftField draftKey="instagramUrl" label="Cuenta Instagram" update={updateDraft} value={draft.instagramUrl} />
+              <DraftField draftKey="facebookUrl" label="Página Facebook" update={updateDraft} value={draft.facebookUrl} />
+              <DraftField draftKey="googleBusinessProfileUrl" label="Google Maps / GBP" update={updateDraft} value={draft.googleBusinessProfileUrl} />
+            </div>
+            <details className="compact-disclosure">
+              <summary>Datos internos y fiscales</summary>
+              <div className="form-grid mt-4">
+                <DraftField draftKey="legalName" label="Razón social" update={updateDraft} value={draft.legalName} />
+                <DraftField draftKey="taxId" label="NIF/CIF" update={updateDraft} value={draft.taxId} />
+                <DraftField draftKey="address" label="Dirección" update={updateDraft} value={draft.address} />
+                <DraftField draftKey="monthlyFee" label="Fee manual" type="number" update={updateDraft} value={draft.monthlyFee} />
+                <DraftField draftKey="adBudget" label="Ads manual" type="number" update={updateDraft} value={draft.adBudget} />
+              </div>
+              <label className="field mt-4">
+                <span>Notas internas</span>
+                <textarea
+                  name="internalNotes"
+                  onChange={(event) => updateDraft("internalNotes", event.target.value)}
+                  rows={3}
+                  value={draft.internalNotes}
+                />
+              </label>
+            </details>
+            <SubmitButton icon="plus" label="Crear cliente" state={state} />
+            <FormMessage message={message} state={state} />
+          </section>
         </div>
-        <div className="form-grid">
-          <label className="field">
-            <span>Estado</span>
-            <select name="status" defaultValue="active">
-              <option value="active">Activo</option>
-              <option value="pending">Pendiente</option>
-              <option value="paused">Pausado</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Tipo</span>
-            <select name="type" defaultValue="real">
-              <option value="real">Real</option>
-              <option value="demo">Demo</option>
-            </select>
-          </label>
-          <Field name="driveFolderId" label="Carpeta Drive vinculada" />
-          <Field name="instagramUrl" label="Cuenta Instagram" />
-          <Field name="facebookUrl" label="Página Facebook" />
-          <Field name="googleBusinessProfileUrl" label="Google Business Profile" />
-        </div>
-        <details className="compact-disclosure">
-          <summary>Datos internos y fiscales</summary>
-          <div className="form-grid mt-4">
-            <Field name="legalName" label="Razón social" />
-            <Field name="taxId" label="NIF/CIF" />
-            <Field name="address" label="Dirección" />
-            <Field name="monthlyFee" label="Fee manual" type="number" />
-            <Field name="adBudget" label="Ads manual" type="number" />
-          </div>
-          <TextArea name="internalNotes" label="Notas internas" rows={3} />
-        </details>
-        <SubmitButton icon="plus" label="Crear cliente" state={state} />
-        <FormMessage message={message} state={state} />
       </form>
     </details>
   );
@@ -142,6 +425,8 @@ export function ClientSettingsForm({ client }: { client: Client }) {
         <Field name="monthlyFee" label="Fee mensual" type="number" defaultValue={String(client.monthlyFee)} />
         <Field name="adBudget" label="Presupuesto anuncios" type="number" defaultValue={String(client.adBudget ?? 0)} />
         <Field name="driveFolderId" label="Carpeta Drive" defaultValue={client.driveFolderId ?? ""} />
+        <Field name="canvaFolderUrl" label="Carpeta Canva" defaultValue={client.canvaFolderUrl ?? ""} />
+        <Field name="canvaAccountUrl" label="Cuenta/Brand Canva" defaultValue={client.canvaAccountUrl ?? ""} />
         <Field name="instagramUrl" label="Instagram" defaultValue={client.instagramUrl ?? ""} />
         <Field name="facebookUrl" label="Facebook" defaultValue={client.facebookUrl ?? ""} />
         <Field name="googleBusinessProfileUrl" label="Google Business Profile" defaultValue={client.googleBusinessProfileUrl ?? ""} />
@@ -375,6 +660,35 @@ function Field({
     <label className="field">
       <span>{label}</span>
       <input name={name} type={type} defaultValue={defaultValue} required={required} />
+    </label>
+  );
+}
+
+function DraftField<K extends keyof ClientDraft>({
+  draftKey,
+  label,
+  type = "text",
+  required = false,
+  update,
+  value
+}: {
+  draftKey: K;
+  label: string;
+  type?: string;
+  required?: boolean;
+  update: (key: K, value: ClientDraft[K]) => void;
+  value: ClientDraft[K];
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        name={String(draftKey)}
+        onChange={(event) => update(draftKey, event.target.value as ClientDraft[K])}
+        required={required}
+        type={type}
+        value={String(value)}
+      />
     </label>
   );
 }

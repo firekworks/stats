@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient, getSupabaseServerClient } from "@/lib/supabase/server";
+import { getStatsAdminSession } from "@/lib/server/admin-session";
 import type { Role } from "@/lib/types";
 
 type AdminClient = NonNullable<ReturnType<typeof getSupabaseAdminClient>>;
@@ -12,8 +13,20 @@ export type RequestProfile = {
 };
 
 export async function getRequestProfile(): Promise<RequestProfile | null> {
-  const supabase = await getSupabaseServerClient();
+  const statsAdmin = await getStatsAdminSession();
   const admin = getSupabaseAdminClient();
+
+  if (statsAdmin && admin) {
+    return {
+      admin,
+      userId: statsAdmin.id,
+      role: "admin",
+      clientId: null,
+      isInternal: true
+    };
+  }
+
+  const supabase = await getSupabaseServerClient();
 
   if (!supabase || !admin) {
     return null;

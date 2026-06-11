@@ -94,6 +94,8 @@ export type Client = {
   services?: string[];
   driveFolderId?: string | null;
   driveFolderUrl?: string | null;
+  canvaFolderUrl?: string | null;
+  canvaAccountUrl?: string | null;
   portalAccessToken?: string | null;
   convertedFromLead?: boolean;
   conversionDate?: string | null;

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getStatsAdminSession } from "@/lib/server/admin-session";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
@@ -20,6 +21,17 @@ export async function getCurrentProfile() {
 }
 
 export async function getCurrentProfileOrNull(): Promise<SessionProfile | null> {
+  const statsAdmin = await getStatsAdminSession();
+
+  if (statsAdmin) {
+    return {
+      id: statsAdmin.id,
+      role: statsAdmin.role,
+      clientId: null,
+      fullName: statsAdmin.fullName
+    } satisfies SessionProfile;
+  }
+
   const supabase = await getSupabaseServerClient();
 
   if (!supabase) {

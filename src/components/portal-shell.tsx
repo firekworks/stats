@@ -7,10 +7,11 @@ import type { Client } from "@/lib/types";
 
 const clientLinks: PortalNavItem[] = [
   { href: "/client", label: "Inicio", icon: "home" },
+  { href: "/client/next-steps", label: "Próximos pasos", icon: "tasks" },
+  { href: "/client/content", label: "Contenido entregado", icon: "content" },
   { href: "/client/results", label: "Resultados", icon: "results" },
-  { href: "/client/content", label: "Contenido", icon: "content" },
-  { href: "/client/calendar", label: "Calendario", icon: "calendar" },
-  { href: "/client/reports", label: "Informe", icon: "reports" }
+  { href: "/client/reports", label: "Informe", icon: "reports" },
+  { href: "/client/invoices", label: "Facturas", icon: "invoices" }
 ];
 
 const adminLinks: PortalNavItem[] = [

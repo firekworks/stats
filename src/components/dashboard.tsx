@@ -12,7 +12,6 @@ import {
   Sparkles,
   Target,
   TrendingUp,
-  Trophy,
   UserPlus,
   WalletCards
 } from "lucide-react";
@@ -48,10 +47,6 @@ export function ClientDashboard({ data }: { data: PortalData }) {
   const bestContent = data.content.find(
     (item) => item.id === latest.bestContentId
   );
-  const score = data.scores.find(
-    (item) => item.clientId === data.selectedClient.id
-  );
-
   const reachTrend = previous
     ? percentageChange(latest.reach, previous.reach)
     : 0;
@@ -106,13 +101,11 @@ export function ClientDashboard({ data }: { data: PortalData }) {
             </div>
             <div className="list-item">
               <span className="metric-icon bg-[rgba(249,115,22,0.12)] text-[#f97316]">
-                <Trophy size={20} />
+                <CalendarClock size={20} />
               </span>
               <div className="list-item-main">
-                <strong>
-                  Estado de colaboracion: {score?.levelName ?? "Partner"}
-                </strong>
-                <span>{score?.action ?? "Seguimiento activo."}</span>
+                <strong>Siguiente mes preparado</strong>
+                <span>{latest.nextMonthPlan || "Plan mensual en seguimiento."}</span>
               </div>
             </div>
           </div>
@@ -428,8 +421,8 @@ function RealDataBlocks({ data }: { data: PortalData }) {
     <section className="grid grid-2">
       <Card>
         <CardHeader
-          title="Campañas Meta"
-          description={data.campaigns.length ? "Datos sincronizados" : "Sin datos"}
+          title="Campañas activas"
+          description={data.campaigns.length ? "Actividad conectada" : "Sin datos"}
           action={<StatusBadge status={data.campaigns.length ? "active" : "pending"} />}
         />
         <div className="mt-5 grid gap-3">
@@ -454,7 +447,7 @@ function RealDataBlocks({ data }: { data: PortalData }) {
               </div>
             </>
           ) : (
-            <DashboardEmpty title="No hay campañas conectadas" text="Conecta Meta para empezar." />
+            <DashboardEmpty title="No hay campañas visibles" text="Cuando haya campañas activas aparecerán aquí." />
           )}
         </div>
       </Card>
@@ -519,17 +512,17 @@ function RealDataBlocks({ data }: { data: PortalData }) {
       <Card>
         <CardHeader
           title="Integraciones"
-          description={meta?.status === "connected" ? "Meta conectado" : "Pendiente"}
+          description={meta?.status === "connected" ? "Datos conectados" : "Pendiente"}
           action={<StatusBadge status={meta?.status ?? "pending"} />}
         />
         <div className="mt-5 list">
           <div className="list-item">
             <div className="list-item-main">
-              <strong>{meta?.externalAccountName ?? meta?.providerUserName ?? "Meta no conectado"}</strong>
+              <strong>{meta?.externalAccountName ?? meta?.providerUserName ?? "Fuente pendiente"}</strong>
               <span>
                 {meta?.lastSyncAt
                   ? `Ultima sincronizacion: ${formatDateShort(meta.lastSyncAt)}`
-                  : "Conecta Meta para empezar"}
+                  : "Datos manuales o sincronizacion pendiente"}
               </span>
             </div>
             <span className="badge badge-gray">

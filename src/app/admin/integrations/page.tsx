@@ -1,7 +1,10 @@
 import { IntegrationsModule } from "@/components/modules";
 import { PageHeader } from "@/components/ui";
 import { getAdminPortalData } from "@/lib/data-access";
-import { getIntegrationOverview } from "@/lib/integrations/overview";
+import {
+  getIntegrationEnvChecklist,
+  getIntegrationOverview
+} from "@/lib/integrations/overview";
 
 export default async function AdminIntegrationsPage() {
   const data = await getAdminPortalData();
@@ -17,6 +20,7 @@ export default async function AdminIntegrationsPage() {
       <IntegrationsModule
         assets={overview.assets}
         clients={data.clients}
+        envChecklist={getIntegrationEnvChecklist()}
         integrations={overview.integrations}
       />
     </>

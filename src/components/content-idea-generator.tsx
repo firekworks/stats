@@ -15,19 +15,36 @@ export function ContentIdeaGenerator({
   const [plan, setPlan] = useState<CampaignPlan | null>(null);
   const [created, setCreated] = useState<{ campaign: number; content: number; events: number } | null>(null);
   const [approved, setApproved] = useState<Record<string, boolean>>({});
+  const [month, setMonth] = useState(defaultCampaignMonth());
+  const [pack, setPack] = useState<"390" | "590">("390");
+  const [objective, setObjective] = useState("Captar más clientes locales cualificados");
+  const [offer, setOffer] = useState("");
+  const [mainPain, setMainPain] = useState("");
+  const [audience, setAudience] = useState("");
+  const [tone, setTone] = useState("");
+  const [visualStyle, setVisualStyle] = useState("");
+  const [adBudget, setAdBudget] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
     "idle"
   );
 
-  async function generate() {
+  async function generate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setState("loading");
     const response = await fetch("/api/admin/content/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         clientId,
-        objective: "captacion local",
-        count: 6
+        adBudget,
+        audience,
+        mainPain,
+        month,
+        objective,
+        offer,
+        pack,
+        tone,
+        visualStyle
       })
     }).catch(() => null);
 
@@ -49,19 +66,95 @@ export function ContentIdeaGenerator({
 
   return (
     <div className="grid gap-3">
-      <button
-        className="button"
-        type="button"
-        onClick={generate}
-        disabled={state === "loading"}
-      >
-        {state === "loading" ? (
-          <Loader2 className="animate-spin" size={16} />
-        ) : (
-          <Sparkles size={16} />
-        )}
-        Generar campaña interna
-      </button>
+      <form className="campaign-generator-form" onSubmit={generate}>
+        <div className="form-grid">
+          <label className="field">
+            <span>Mes</span>
+            <input
+              onChange={(event) => setMonth(event.target.value)}
+              type="month"
+              value={month}
+            />
+          </label>
+          <label className="field">
+            <span>Pack</span>
+            <select
+              onChange={(event) => setPack(event.target.value as "390" | "590")}
+              value={pack}
+            >
+              <option value="390">Pack 390</option>
+              <option value="590">Pack 590</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Objetivo del mes</span>
+            <input
+              onChange={(event) => setObjective(event.target.value)}
+              value={objective}
+            />
+          </label>
+          <label className="field">
+            <span>Oferta principal</span>
+            <input
+              onChange={(event) => setOffer(event.target.value)}
+              placeholder="Ej. reserva / valoración / clase de prueba"
+              value={offer}
+            />
+          </label>
+          <label className="field">
+            <span>Dolor principal</span>
+            <input
+              onChange={(event) => setMainPain(event.target.value)}
+              placeholder="Ej. no saber qué elegir"
+              value={mainPain}
+            />
+          </label>
+          <label className="field">
+            <span>Público objetivo</span>
+            <input
+              onChange={(event) => setAudience(event.target.value)}
+              placeholder="Clientes locales de la zona"
+              value={audience}
+            />
+          </label>
+          <label className="field">
+            <span>Tono</span>
+            <input
+              onChange={(event) => setTone(event.target.value)}
+              placeholder="Cercano, premium, educativo..."
+              value={tone}
+            />
+          </label>
+          <label className="field">
+            <span>Estilo visual</span>
+            <input
+              onChange={(event) => setVisualStyle(event.target.value)}
+              placeholder="Producto real, equipo, local..."
+              value={visualStyle}
+            />
+          </label>
+          <label className="field">
+            <span>Ads recomendados</span>
+            <input
+              onChange={(event) => setAdBudget(event.target.value)}
+              placeholder={pack === "590" ? "90-150 EUR" : "60-90 EUR"}
+              value={adBudget}
+            />
+          </label>
+        </div>
+        <button
+          className="button"
+          disabled={state === "loading"}
+          type="submit"
+        >
+          {state === "loading" ? (
+            <Loader2 className="animate-spin" size={16} />
+          ) : (
+            <Sparkles size={16} />
+          )}
+          Generar campaña interna
+        </button>
+      </form>
       {state === "error" ? (
         <div className="notice-card">
           <strong>No se pudo generar</strong>
@@ -184,4 +277,9 @@ export function ContentIdeaGenerator({
       ) : null}
     </div>
   );
+}
+
+function defaultCampaignMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }

@@ -2,7 +2,6 @@ import {
   AlertTriangle,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   CreditCard,
   Eye,
   ExternalLink,
@@ -13,10 +12,10 @@ import {
   MessageCircle,
   Palette,
   ReceiptText,
-  Route,
   Sparkles,
   TrendingUp
 } from "lucide-react";
+import { CalendarPlanner } from "@/components/calendar-planner";
 import { CalendarEventForm } from "@/components/calendar-event-form";
 import { ContentIdeaGenerator } from "@/components/content-idea-generator";
 import { CopyLinkButton } from "@/components/copy-link-button";
@@ -150,94 +149,13 @@ export function CalendarModule({
   content: ContentItem[];
   events: CalendarEvent[];
 }) {
-  const now = new Date();
-  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const upcoming = events.filter((event) => new Date(event.startAt) >= now);
-  const weekEvents = upcoming.filter((event) => new Date(event.startAt) <= nextWeek);
-  const pending = events.filter((event) => event.status === "pending");
-
   return (
-    <div className="grid">
-      <section className="calendar-command">
-        <MetricCard
-          icon={CalendarDays}
-          label="Próximos"
-          value={String(upcoming.length)}
-          helper="Publicaciones y entregas"
-          tone="blue"
-        />
-        <MetricCard
-          icon={Clock3}
-          label="Esta semana"
-          value={String(weekEvents.length)}
-          helper="Agenda inmediata"
-          tone="mint"
-        />
-        <MetricCard
-          icon={Route}
-          label="Pendientes"
-          value={String(pending.length)}
-          helper="Por confirmar"
-          tone="orange"
-        />
-        <Card className="calendar-connect-card">
-          <CardHeader
-            title="Google Calendar"
-            description="Sincronización"
-            action={
-              <ButtonLink href="/api/google/auth" variant="secondary">
-                <ExternalLink size={16} />
-                Conectar
-              </ButtonLink>
-            }
-          />
-          <span className="badge badge-gray">Estado en Integraciones</span>
-        </Card>
-      </section>
-
-      <section className="calendar-layout">
-        <Card className="calendar-board-card">
-          <CardHeader
-            title="Calendario"
-            description="Mes"
-            action={
-              <div className="settings-tabs m-0">
-                <a href="#mes">Mes</a>
-                <a href="#semana">Semana</a>
-                <a href="#lista">Lista</a>
-              </div>
-            }
-          />
-          <CalendarBoard clients={clients} content={content} events={events} />
-        </Card>
-        <Card>
-          <CardHeader title="Crear evento" description="Stats + Google" />
-          <div className="mt-5">
-            <CalendarEventForm clients={clients} campaigns={campaigns} content={content} />
-          </div>
-        </Card>
-      </section>
-
-      <section id="lista">
-        <Card>
-          <CardHeader title="Lista" description="Próximos eventos" />
-          <div className="mt-5 calendar-list">
-            {events.length ? (
-              events.slice(0, 12).map((event) => (
-                <CalendarEventRow
-                  clients={clients}
-                  content={content}
-                  event={event}
-                  key={event.id}
-                />
-              ))
-            ) : (
-              <EmptyWorkflowState text="No hay eventos todavía." />
-            )}
-          </div>
-        </Card>
-      </section>
-    </div>
+    <CalendarPlanner
+      campaigns={campaigns}
+      clients={clients}
+      content={content}
+      events={events}
+    />
   );
 }
 
@@ -678,10 +596,11 @@ export function ClientPortalView({
         </div>
         <nav className="portal-client-nav" aria-label="Portal cliente">
           <a href="#resumen">Resumen</a>
+          <a href="#proximas">Próximas publicaciones</a>
+          <a href="#contenido">Contenido entregado</a>
           <a href="#resultados">Resultados</a>
-          <a href="#contenido">Contenido</a>
-          <a href="#calendario">Calendario</a>
           <a href="#informe">Informe</a>
+          <a href="#facturas">Facturas</a>
         </nav>
       </section>
 
@@ -716,7 +635,7 @@ export function ClientPortalView({
         />
       </section>
 
-      <section className="portal-client-summary">
+      <section className="portal-client-summary" id="proximas">
         <Card className="hero-result">
           <span className="metric-label">Campaña del mes</span>
           <strong className="portal-campaign-title">
@@ -786,6 +705,35 @@ export function ClientPortalView({
           <p className="m-0 mt-4 text-[#6e6e73]">
             El ROI se marca como real solo cuando el cliente confirma ventas o reservas.
           </p>
+        </Card>
+      </section>
+
+      <section className="detail-section" id="facturas">
+        <Card>
+          <CardHeader title="Facturas" description="Documentos descargables" />
+          <div className="mt-5 list">
+            {data.invoices.length ? (
+              data.invoices.map((invoice) => (
+                <div className="list-item" key={invoice.id}>
+                  <CreditCard size={21} />
+                  <div className="list-item-main">
+                    <strong>{invoice.invoiceNumber}</strong>
+                    <span>
+                      {invoice.issueDate} · {formatCurrency(invoice.total)}
+                    </span>
+                  </div>
+                  <StatusBadge status={invoice.status} />
+                  <PdfDownloadButton
+                    href={`/api/invoices/${invoice.id}/pdf`}
+                    label="PDF"
+                    variant="secondary"
+                  />
+                </div>
+              ))
+            ) : (
+              <EmptyWorkflowState text="No hay facturas publicadas todavía." />
+            )}
+          </div>
         </Card>
       </section>
     </main>
@@ -1270,12 +1218,30 @@ export function ClientInternalDetail({
           <div className="mt-5 grid gap-4">
             <SmallWorkflowStat
               label="Carpeta Drive"
-              value={client.driveFolderId ?? "Pendiente"}
+              value={client.driveFolderUrl ?? client.driveFolderId ?? "Pendiente"}
+            />
+            <SmallWorkflowStat
+              label="Carpeta Canva"
+              value={client.canvaFolderUrl ?? "Pendiente"}
             />
             <SmallWorkflowStat
               label="Portal"
               value={client.isDemo ? `/demo/${client.slug}` : `/portal/${client.slug}`}
             />
+            <div className="toolbar justify-start">
+              {client.driveFolderUrl ? (
+                <ButtonLink href={client.driveFolderUrl} variant="ghost">
+                  <ExternalLink size={16} />
+                  Drive
+                </ButtonLink>
+              ) : null}
+              {client.canvaFolderUrl ? (
+                <ButtonLink href={client.canvaFolderUrl} variant="ghost">
+                  <ExternalLink size={16} />
+                  Canva
+                </ButtonLink>
+              ) : null}
+            </div>
             <DriveAssetsPanel client={client} />
           </div>
         </Card>

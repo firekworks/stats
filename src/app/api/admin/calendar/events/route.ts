@@ -11,6 +11,7 @@ type CalendarBody = {
   contentItemId?: string | null;
   title?: string;
   type?: string;
+  status?: string;
   startAt?: string;
   endAt?: string | null;
   location?: string | null;
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
       content_item_id: body.contentItemId ?? null,
       title: body.title,
       type: body.type ?? "Evento",
-      status: "pending",
+      status: normalizeStatus(body.status),
       start_at: start.toISOString(),
       end_at: end?.toISOString() ?? null,
       location: body.location ?? "Stats",
@@ -92,4 +93,12 @@ export async function POST(request: Request) {
     event: data,
     googleCalendar
   });
+}
+
+function normalizeStatus(value?: string) {
+  if (value === "confirmed" || value === "done" || value === "cancelled") {
+    return value;
+  }
+
+  return "pending";
 }

@@ -29,33 +29,41 @@ export function LoginForm({
     setLoading(true);
     setMessage(null);
 
-    const supabase = getSupabaseBrowserClient();
-
-    if (!supabase) {
-      setLoading(false);
-      setMessage(
-        getSupabaseBrowserConfigError()
-          ? "El acceso no está disponible ahora mismo. Inténtalo de nuevo en unos minutos."
-          : "El acceso no está disponible ahora mismo."
-      );
-      return;
-    }
-
     const response = await fetch("/api/auth/username-login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password, remember })
     });
     const payload = (await response.json()) as {
+      adminSession?: boolean;
       accessToken?: string;
       refreshToken?: string;
       route?: string;
       error?: string;
     };
 
-    if (!response.ok || !payload.accessToken || !payload.refreshToken) {
+    if (!response.ok) {
       setLoading(false);
       setMessage(payload.error || invalidMessage);
+      return;
+    }
+
+    if (payload.adminSession) {
+      localStorage.setItem("stats.rememberDevice", String(remember));
+      setLoading(false);
+      router.push(payload.route || "/admin");
+      router.refresh();
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase || !payload.accessToken || !payload.refreshToken) {
+      setLoading(false);
+      setMessage(
+        getSupabaseBrowserConfigError() ||
+          "No se pudo crear la sesión. Revisa la configuración de Supabase."
+      );
       return;
     }
 
@@ -110,9 +118,9 @@ export function LoginForm({
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="login-input w-full pl-[52px] pr-14"
+            className="login-input login-password-input w-full"
             autoComplete="current-password"
-            minLength={10}
+            minLength={8}
             required
           />
           <button

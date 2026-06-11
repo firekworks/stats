@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireInternalRequest } from "@/lib/integrations/http";
+import { getWonLeadById } from "@/lib/leads/source";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,9 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "leadId o name requerido" }, { status: 400 });
   }
 
-  const lead = body.leadId
-    ? await findLead(auth.profile.admin, body.leadId)
-    : null;
+  const lead = body.leadId ? await getWonLeadById(body.leadId) : null;
   const verifiedLeadId = lead?.id ? String(lead.id) : null;
   const name = String(body.name ?? lead?.name ?? "Cliente desde Leads");
   const city = String(body.city ?? lead?.city ?? "");
@@ -50,6 +49,13 @@ export async function POST(request: Request) {
       slug: makeSlug(`${name}-${city}`),
       sector,
       city,
+      phone: lead?.phone ?? null,
+      website: lead?.website ?? null,
+      instagram_url: lead?.instagramUrl ?? null,
+      facebook_url: lead?.facebookUrl ?? null,
+      whatsapp_url: lead?.whatsappUrl ?? null,
+      google_business_profile_url: lead?.googleMapsUrl ?? null,
+      commercial_contact_name: lead?.contactName ?? null,
       status: "Pendiente datos fiscales",
       source: body.source ?? "lead_conversion",
       lead_id: verifiedLeadId,
@@ -58,6 +64,7 @@ export async function POST(request: Request) {
       original_lead_score: Number(body.score ?? lead?.score ?? 0) || null,
       original_lead_city: city || null,
       original_lead_sector: sector || null,
+      internal_notes: lead?.notes ? `Origen Leads:\n${lead.notes}` : null,
       client_portal_enabled: false,
       portal_status: "pending"
     })
@@ -69,18 +76,6 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ ok: true, client: data, reused: false });
-}
-
-async function findLead(db: ReturnType<typeof import("@/lib/supabase/server").getSupabaseAdminClient>, leadId: string) {
-  if (!db) return null;
-
-  const { data } = await db
-    .from("leads")
-    .select("*")
-    .eq("id", leadId)
-    .maybeSingle();
-
-  return data as Record<string, unknown> | null;
 }
 
 async function findExistingClient({

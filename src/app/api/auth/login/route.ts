@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  issueStatsAdminSession,
+  verifyStatsAdminCredentials
+} from "@/lib/server/admin-session";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { Role } from "@/lib/types";
 
@@ -21,6 +25,7 @@ const reservedUsernames = new Set([
 ]);
 
 type LoginBody = {
+  remember?: boolean;
   username?: string;
   password?: string;
 };
@@ -40,6 +45,25 @@ export async function POST(request: Request) {
     return invalidLogin();
   }
 
+  const adminCredentials = verifyStatsAdminCredentials({
+    username,
+    password
+  });
+
+  if (adminCredentials.matched) {
+    if (adminCredentials.ok) {
+      return issueStatsAdminSession({
+        email: adminCredentials.email,
+        remember: body.remember !== false
+      });
+    }
+
+    return NextResponse.json(
+      { error: adminCredentials.error ?? "Credenciales admin incorrectas" },
+      { status: adminCredentials.status ?? 401 }
+    );
+  }
+
   const admin = getSupabaseAdminClient();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -51,7 +75,13 @@ export async function POST(request: Request) {
     publicKey.startsWith("sb_secret_") ||
     publicKey.includes("service_role")
   ) {
-    return NextResponse.json({ error: "Supabase no configurado" }, { status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          "Login no configurado. Faltan variables de Supabase o las credenciales admin no coinciden con STATS_ADMIN_EMAIL."
+      },
+      { status: 503 }
+    );
   }
 
   const resolved = await resolveAuthIdentity(admin, username);

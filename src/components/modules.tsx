@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { IntegrationAssetSelector } from "@/components/integration-asset-selector";
 import { IntegrationActionButton } from "@/components/integration-action-button";
-import { NewClientForm } from "@/components/admin-forms";
+import { ClientsHub } from "@/components/clients-hub";
 import { ButtonLink, Card, CardHeader, StatusBadge } from "@/components/ui";
 import { PdfDownloadButton } from "@/components/pdf-download-button";
 import {
@@ -27,6 +27,7 @@ import {
 } from "@/lib/format";
 import type {
   ConnectedAssetOverviewRow,
+  IntegrationEnvGroup,
   IntegrationOverviewRow
 } from "@/lib/integrations/overview";
 import type {
@@ -498,23 +499,14 @@ export function NextStepsModule({ tasks }: { tasks: Task[] }) {
 export function IntegrationsModule({
   clients,
   integrations,
-  assets
+  assets,
+  envChecklist
 }: {
   clients: Client[];
   integrations: IntegrationOverviewRow[];
   assets: ConnectedAssetOverviewRow[];
+  envChecklist: IntegrationEnvGroup[];
 }) {
-  const googleReady = envReady([
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_REDIRECT_URI",
-    "ENCRYPTION_KEY"
-  ]);
-  const metaReady = envReady(["META_APP_ID", "META_APP_SECRET", "META_REDIRECT_URI"]);
-  const canvaReady = envReady(["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"]);
-  const whatsappReady = envReady(["WHATSAPP_BUSINESS_ACCOUNT_ID"]);
-  const metricoolReady = envReady(["METRICOOL_API_KEY"]);
-
   return (
     <div className="grid gap-6">
       <section className="grid grid-2">
@@ -525,46 +517,17 @@ export function IntegrationsModule({
             action={<Cable size={22} />}
           />
           <div className="mt-5 list">
-            <ConnectorStatus
-              title="Meta Ads + Instagram + Facebook"
-              text={metaReady ? "OAuth, activos e insights listos." : "Faltan META_APP_ID, META_APP_SECRET o META_REDIRECT_URI."}
-              ready={metaReady}
-            />
-            <ConnectorStatus
-              title="Google Calendar"
-              text={googleReady ? "OAuth preparado con calendar.events." : "Faltan GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI o ENCRYPTION_KEY."}
-              ready={googleReady}
-            />
-            <ConnectorStatus
-              title="Google Drive"
-              text={googleReady ? "Carpeta raíz COMERCIOS y lectura por cliente." : "Pendiente de OAuth Google; admite enlace manual por cliente."}
-              ready={googleReady}
-            />
-            <ConnectorStatus
-              title="Canva"
-              text={canvaReady ? "API lista; enlaces manuales siguen disponibles." : "Faltan CANVA_CLIENT_ID y CANVA_CLIENT_SECRET; usar enlace manual."}
-              ready={canvaReady}
-            />
-            <ConnectorStatus
-              title="WhatsApp Cloud API"
-              text={whatsappReady ? "Cuenta Business configurada." : "Falta WHATSAPP_BUSINESS_ACCOUNT_ID; eventos internos siguen funcionando."}
-              ready={whatsappReady}
-            />
-            <ConnectorStatus
-              title="Metricool"
-              text={metricoolReady ? "API key configurada para futura sincronización." : "Pendiente de configurar METRICOOL_API_KEY."}
-              ready={metricoolReady}
-            />
-            <ConnectorStatus
-              title="PDF"
-              text="Informes y facturas descargan application/pdf desde endpoints seguros."
-              ready
-            />
-            <ConnectorStatus
-              title="Supabase"
-              text="Auth, RLS, Storage y Postgres como fuente operativa."
-              ready
-            />
+            {envChecklist.map((group) => (
+              <ConnectorStatus
+                key={group.id}
+                missing={group.missing}
+                optional={group.optional}
+                ready={group.ready}
+                required={group.required}
+                text={group.description}
+                title={group.title}
+              />
+            ))}
           </div>
         </Card>
         <Card>
@@ -778,11 +741,17 @@ function IntegrationProviderRow({
 function ConnectorStatus({
   title,
   text,
-  ready = false
+  ready = false,
+  required = [],
+  optional = [],
+  missing = []
 }: {
   title: string;
   text: string;
   ready?: boolean;
+  required?: string[];
+  optional?: string[];
+  missing?: string[];
 }) {
   return (
     <div className="list-item">
@@ -798,16 +767,24 @@ function ConnectorStatus({
       <div className="list-item-main">
         <strong>{title}</strong>
         <span>{text}</span>
+        <span className="mt-2 block text-sm">
+          {missing.length
+            ? `Faltan: ${missing.join(", ")}`
+            : required.length
+              ? `Requeridas listas: ${required.join(", ")}`
+              : "No requiere credenciales para operar ahora."}
+        </span>
+        {optional.length ? (
+          <span className="mt-1 block text-sm text-[#6e6e73]">
+            Opcionales: {optional.join(", ")}
+          </span>
+        ) : null}
       </div>
       <span className={ready ? "badge badge-blue" : "badge badge-gray"}>
         {ready ? "Configurado" : "Pendiente de configurar"}
       </span>
     </div>
   );
-}
-
-function envReady(names: string[]) {
-  return names.every((name) => Boolean(process.env[name]));
 }
 
 function providerStatusText(
@@ -841,86 +818,7 @@ function formatDateShort(value: string) {
 }
 
 export function ClientsModule({ data }: { data: PortalData }) {
-  return (
-    <Card className="client-list-card">
-      <CardHeader
-        title="Clientes"
-        description="Cartera operativa"
-        action={<NewClientForm />}
-      />
-      <div className="client-toolbar mt-5">
-        <label className="field client-search">
-          <span>Buscar</span>
-          <input placeholder="Nombre, ciudad o sector" type="search" />
-        </label>
-        <div className="filter-chips" aria-label="Filtros rápidos">
-          <span>Activo</span>
-          <span>Demo</span>
-          <span>Pendiente</span>
-          <span>Pausado</span>
-        </div>
-      </div>
-      <div className="client-list mt-5">
-        {data.clients.map((client) => {
-          const task = nextClientTask(data.tasks, client.id);
-          const event = nextClientEvent(data.calendarEvents, client.id);
-          const nextStep = task?.title ?? event?.title ?? "Definir campaña del mes";
-          const nextDate = event?.startAt
-            ? formatDateShort(event.startAt)
-            : task?.dueDate ?? "Sin fecha";
-
-          return (
-            <div className="client-row" key={client.id}>
-              <div className="client-name-cell">
-                <strong>{client.publicName}</strong>
-                <span>
-                  {client.industry} · {client.city}
-                </span>
-              </div>
-              <div className="client-status-cell">
-                {client.isDemo ? (
-                  <span className="badge badge-blue">Demo</span>
-                ) : (
-                  <StatusBadge status={client.status} />
-                )}
-                <span>Pack {client.monthlyFee >= 540 ? "590" : "390"}</span>
-              </div>
-              <div className="client-summary">
-                <span className="metric-label">Próximo paso</span>
-                <strong>{nextStep}</strong>
-                <span>{client.planName}</span>
-              </div>
-              <div className="client-summary">
-                <span className="metric-label">Próxima fecha</span>
-                <strong>{nextDate}</strong>
-                <span>{event ? "Evento" : task ? "Acción" : "Pendiente"}</span>
-              </div>
-              <div className="client-row-actions">
-                <ButtonLink href={`/admin/clients/${client.id}`} variant="secondary">
-                  <ExternalLink size={16} />
-                  Abrir
-                </ButtonLink>
-                <ButtonLink
-                  href={client.isDemo ? `/demo/${client.slug}` : `/admin/clients/${client.id}#portal`}
-                  variant="ghost"
-                >
-                  Portal
-                </ButtonLink>
-                <PdfDownloadButton
-                  href={`/api/admin/reports/monthly/pdf?clientId=${client.id}`}
-                  label="Informe"
-                  variant="secondary"
-                />
-                <ButtonLink href={`/admin/clients/${client.id}#facturas`} variant="ghost">
-                  Factura
-                </ButtonLink>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
+  return <ClientsHub data={data} />;
 }
 
 function nextClientTask(tasks: Task[], clientId: string) {
