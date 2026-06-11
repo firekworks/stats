@@ -1,22 +1,5 @@
-import { PageHeader } from "@/components/ui";
-import { ContentWorkflowModule } from "@/components/workflow-modules";
-import { getAdminPortalData } from "@/lib/data-access";
+import { redirect } from "next/navigation";
 
-export default async function AdminContentPage() {
-  const data = await getAdminPortalData();
-
-  return (
-    <>
-      <PageHeader
-        eyebrow="Contenido"
-        title="Biblioteca interna"
-        description="Piezas entregadas, rendimiento, aprendizajes y estado de aprobacion."
-      />
-      <ContentWorkflowModule
-        admin
-        clients={data.clients}
-        content={data.content}
-      />
-    </>
-  );
+export default function AdminContentPage() {
+  redirect("/admin/clients");
 }

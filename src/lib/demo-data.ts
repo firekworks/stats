@@ -37,9 +37,10 @@ export const clients: Client[] = [
     services: ["Contenido mensual", "Meta Ads", "Google Business Profile", "WhatsApp"],
     averageTicket: 35,
     allowPublicLeaderboardName: true,
-    planName: "Demo Growth Local",
+    planName: "Pack 590 - Crecimiento local",
     planStatus: "Activo",
-    monthlyFee: 790,
+    monthlyFee: 590,
+    adBudget: 120,
     onboardedAt: "2025-10-01",
     publicLeaderboardName: "Restaurante mediterraneo"
   },
@@ -61,9 +62,10 @@ export const clients: Client[] = [
     services: ["Embudo de leads", "Landing", "Meta Ads", "Seguimiento"],
     averageTicket: 85,
     allowPublicLeaderboardName: false,
-    planName: "Demo Embudo Local",
+    planName: "Pack 590 - Crecimiento local",
     planStatus: "Activo",
-    monthlyFee: 990,
+    monthlyFee: 590,
+    adBudget: 150,
     onboardedAt: "2025-08-15",
     publicLeaderboardName: "Cliente local #02"
   },
@@ -85,9 +87,10 @@ export const clients: Client[] = [
     services: ["Reels", "Campañas Meta", "Prueba gratuita", "Reporting"],
     averageTicket: 49,
     allowPublicLeaderboardName: false,
-    planName: "Demo Performance Local",
+    planName: "Pack 390 - Base local",
     planStatus: "Activo",
-    monthlyFee: 1290,
+    monthlyFee: 390,
+    adBudget: 90,
     onboardedAt: "2025-06-01",
     publicLeaderboardName: "Gimnasio demo"
   }

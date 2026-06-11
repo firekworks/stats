@@ -587,9 +587,11 @@ function formatDateShort(value: string) {
 }
 
 export function AdminDashboard({ data }: { data: PortalData }) {
-  const realClients = data.clients.filter((client) => !client.isDemo);
   const now = new Date();
   const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const nextTask = data.tasks
+    .filter((task) => task.status !== "done")
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
   const nextEvents = data.calendarEvents
     .filter((event) => new Date(event.startAt).getTime() >= now.getTime())
     .sort(
@@ -615,23 +617,9 @@ export function AdminDashboard({ data }: { data: PortalData }) {
       (a, b) =>
         new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     );
-  const priorityAlerts = data.alerts.filter((alert) =>
-    ["critical", "warning"].includes(alert.severity)
-  );
-  const clientsNeedingAction = realClients.filter((client) =>
-    priorityAlerts.some((alert) => alert.clientId === client.id) ||
-    pendingApprovals.some((item) => item.clientId === client.id) ||
-    invoicesToWatch.some((invoice) => invoice.clientId === client.id)
-  );
   const nextEventClient = nextEvent
     ? data.clients.find((client) => client.id === nextEvent.clientId)
     : null;
-  const nextDelivery = data.content
-    .filter((item) => ["scheduled", "pending_approval"].includes(item.status))
-    .sort(
-      (a, b) =>
-        new Date(a.publishDate).getTime() - new Date(b.publishDate).getTime()
-    )[0];
   const nextInvoiceTotal = invoicesToWatch.reduce(
     (sum, invoice) => sum + invoice.total,
     0
@@ -644,34 +632,36 @@ export function AdminDashboard({ data }: { data: PortalData }) {
     <div className="grid">
       <section className="grid grid-4">
         <OperationalCard
+          icon={CheckCircle2}
+          label="Próxima tarea"
+          title={nextTask?.title ?? "Sin tarea urgente"}
+          text={
+            nextTask
+              ? `Vence ${nextTask.dueDate}`
+              : "No hay tareas abiertas pendientes."
+          }
+          tone="blue"
+          badge={nextTask?.status ?? "ok"}
+          href={nextTask ? `/admin/clients/${nextTask.clientId}` : "/admin/clients"}
+        />
+        <OperationalCard
           icon={CalendarClock}
-          label="Hoy"
-          title={nextEvent?.title ?? nextDelivery?.title ?? "Sin bloqueos"}
+          label="Próximo evento"
+          title={nextEvent?.title ?? "Sin evento próximo"}
           text={
             nextEvent
               ? `${nextEventClient?.publicName ?? "Firekworks"} · ${formatDateShort(
                   nextEvent.startAt
                 )}`
-              : nextDelivery
-                ? `Entrega próxima · ${nextDelivery.contentCode ?? nextDelivery.type}`
-                : "No hay entregas, eventos ni facturas urgentes."
+              : "Agenda limpia."
           }
-          tone="blue"
-          badge={nextEvent?.status ?? nextDelivery?.status ?? "ok"}
+          tone="mint"
+          badge={nextEvent?.status ?? "ok"}
           href="/admin/calendar"
         />
         <OperationalCard
-          icon={UserPlus}
-          label="Clientes activos"
-          title={String(realClients.filter((client) => client.status === "active").length)}
-          text="Cartera real gestionada en Stats."
-          tone="mint"
-          badge={`${realClients.length} reales`}
-          href="/admin/clients"
-        />
-        <OperationalCard
           icon={FileBarChart}
-          label="Pendiente de producir"
+          label="Contenido pendiente"
           title={`${productionPending.length} pieza${
             productionPending.length === 1 ? "" : "s"
           }`}
@@ -732,34 +722,22 @@ export function AdminDashboard({ data }: { data: PortalData }) {
           </div>
         </Card>
 
-        {clientsNeedingAction.length ? (
-          <Card>
-            <CardHeader title="Clientes que requieren acción" description="Solo señales reales" />
-            <div className="mt-5 list">
-              {clientsNeedingAction.slice(0, 5).map((client) => {
-                const alert = priorityAlerts.find((item) => item.clientId === client.id);
-                const approval = pendingApprovals.find((item) => item.clientId === client.id);
-                const invoice = invoicesToWatch.find((item) => item.clientId === client.id);
-                const reason =
-                  alert?.title ??
-                  approval?.title ??
-                  (invoice ? `${invoice.invoiceNumber} · ${formatCurrency(invoice.total)}` : "Revisar");
-
-                return (
-                  <div className="list-item" key={client.id}>
-                    <div className="list-item-main">
-                      <strong>{client.publicName}</strong>
-                      <span>{reason}</span>
-                    </div>
-                    <ButtonLink href={`/admin/clients/${client.id}`} variant="ghost">
-                      Abrir
-                    </ButtonLink>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        ) : null}
+        <Card>
+          <CardHeader title="Accesos rápidos" description="Crear" />
+          <div className="quick-actions">
+            <ButtonLink href="/admin/clients">
+              <UserPlus size={16} />
+              Nuevo cliente
+            </ButtonLink>
+            <ButtonLink href="/admin/calendar" variant="secondary">
+              <CalendarClock size={16} />
+              Crear evento
+            </ButtonLink>
+            <ButtonLink href="/admin/demos" variant="ghost">
+              Ver demos
+            </ButtonLink>
+          </div>
+        </Card>
       </section>
     </div>
   );

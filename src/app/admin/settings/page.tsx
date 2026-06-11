@@ -9,15 +9,26 @@ import {
   SlidersHorizontal,
   UsersRound
 } from "lucide-react";
+import { SettingsJsonForm } from "@/components/settings-json-form";
 import { Card, CardHeader, ButtonLink, PageHeader } from "@/components/ui";
 import { getBillingSettings } from "@/lib/billing-settings";
+import { defaultPacks, defaultPlaybooks } from "@/lib/content-strategy";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const settingsSections = [
   {
-    title: "General",
-    description: "Perfil operativo, nombre publico y datos base de Stats.",
+    title: "Packs Firekworks",
+    description: "Pack 390 y Pack 590 editables para el generador interno.",
     icon: SlidersHorizontal,
-    status: "Preparado"
+    status: "Editable",
+    href: "#packs"
+  },
+  {
+    title: "Playbooks",
+    description: "Sectores, dolores, tonos, checklists y calendario tipo.",
+    icon: FileText,
+    status: "Interno",
+    href: "#playbooks"
   },
   {
     title: "Marca",
@@ -68,6 +79,14 @@ const settingsSections = [
 
 export default async function AdminSettingsPage() {
   const { settings, pendingMigration } = await getBillingSettings();
+  const packsJson = await getJsonSetting(
+    "stats.packs_json",
+    JSON.stringify(defaultPacks, null, 2)
+  );
+  const playbooksJson = await getJsonSetting(
+    "stats.playbooks_json",
+    JSON.stringify(defaultPlaybooks, null, 2)
+  );
 
   return (
     <>
@@ -96,6 +115,37 @@ export default async function AdminSettingsPage() {
       </section>
 
       <section className="grid grid-2">
+        <Card id="packs">
+          <CardHeader
+            title="Packs Firekworks"
+            description="390 / 590"
+            action={<span className="badge badge-blue">Editable</span>}
+          />
+          <div className="mt-5">
+            <SettingsJsonForm
+              settingKey="stats.packs_json"
+              title="Configuracion de packs"
+              value={packsJson}
+            />
+          </div>
+        </Card>
+
+        <Card id="playbooks">
+          <CardHeader
+            title="Playbooks por sector"
+            description="Solo interno"
+            action={<span className="badge badge-gray">No visible cliente</span>}
+          />
+          <div className="mt-5">
+            <SettingsJsonForm
+              rows={14}
+              settingKey="stats.playbooks_json"
+              title="Playbooks iniciales"
+              value={playbooksJson}
+            />
+          </div>
+        </Card>
+
         <Card>
           <CardHeader
             title="Datos fiscales activos"
@@ -171,6 +221,21 @@ export default async function AdminSettingsPage() {
       </section>
     </>
   );
+}
+
+async function getJsonSetting(key: string, fallback: string) {
+  const supabase = await getSupabaseServerClient();
+
+  if (!supabase) return fallback;
+
+  const { data } = await supabase
+    .from("app_texts")
+    .select("value")
+    .eq("app", "stats")
+    .eq("key", key)
+    .maybeSingle();
+
+  return data?.value ?? fallback;
 }
 
 function SettingLine({ label, value }: { label: string; value: string | number }) {

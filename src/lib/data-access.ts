@@ -25,7 +25,6 @@ import type {
 } from "@/lib/types";
 
 // Replace with generated Supabase Database types after the first schema pull.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 
 export async function getClientPortalData(clientId?: string) {
@@ -84,7 +83,7 @@ export async function getClientPortalData(clientId?: string) {
 
   const supplemental = await getSupplementalRows(admin, [clientId]);
 
-  return makePortalData({
+  return toClientVisiblePortalData(makePortalData({
     clients: clients.data,
     selectedClientId: clientId,
     metrics: metrics.data ?? [],
@@ -97,7 +96,7 @@ export async function getClientPortalData(clientId?: string) {
     alerts: alerts.data ?? [],
     tasks: tasks.data ?? [],
     ...supplemental
-  });
+  }));
 }
 
 export async function getAdminPortalData(): Promise<PortalData> {
@@ -202,7 +201,7 @@ export async function getDemoPortalDataBySlug(slug: string): Promise<PortalData 
   ]);
   const supplemental = await getSupplementalRows(admin, [clientId]);
 
-  return makePortalData({
+  return toClientVisiblePortalData(makePortalData({
     clients: [client],
     selectedClientId: clientId,
     metrics: metrics.data ?? [],
@@ -215,7 +214,7 @@ export async function getDemoPortalDataBySlug(slug: string): Promise<PortalData 
     alerts: alerts.data ?? [],
     tasks: tasks.data ?? [],
     ...supplemental
-  });
+  }));
 }
 
 async function getSupplementalRows(
@@ -302,6 +301,26 @@ async function getSupplementalRows(
   };
 }
 
+function toClientVisiblePortalData(data: PortalData): PortalData {
+  const visibleContent = data.content.filter((item) =>
+    item.clientVisible !== false &&
+    ["pending_approval", "scheduled", "published"].includes(item.status)
+  );
+  const visibleContentIds = new Set(visibleContent.map((item) => item.id));
+
+  return {
+    ...data,
+    content: visibleContent,
+    calendarEvents: data.calendarEvents.filter((event) => {
+      if (event.contentItemId) {
+        return visibleContentIds.has(event.contentItemId);
+      }
+
+      return event.status === "confirmed" && !event.notes?.toLowerCase().includes("intern");
+    })
+  };
+}
+
 function makePortalData(input: {
   clients: Row[];
   selectedClientId: string;
@@ -377,6 +396,11 @@ function mapClient(row: Row): Client {
     phone: row.phone ?? null,
     contactName: row.commercial_contact_name ?? row.contact_name ?? null,
     website: row.website ?? null,
+    instagramUrl: row.instagram_url ?? null,
+    facebookUrl: row.facebook_url ?? null,
+    googleBusinessProfileUrl: row.google_business_profile_url ?? row.gbp_url ?? null,
+    whatsappUrl: row.whatsapp_url ?? null,
+    internalNotes: row.internal_notes ?? null,
     industry: row.industry ?? row.sector ?? "",
     status:
       row.status === "Baja"
@@ -555,6 +579,7 @@ function mapContent(row: Row, summary?: ContentMetricSummary): ContentItem {
     notes: row.notes ?? row.internal_notes ?? null,
     assignedTo: row.assigned_to ?? null,
     isDemo: Boolean(row.is_demo),
+    clientVisible: row.client_visible === false ? false : true,
     isPromoted: Boolean(row.is_promoted),
     promotionBudget: Number(row.promotion_budget ?? 0),
     views: Number(summary?.views ?? row.views ?? 0),

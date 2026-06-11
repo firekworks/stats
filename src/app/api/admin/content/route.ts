@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       canva_view_url: string(body.canvaUrl),
       is_promoted: Boolean(body.promoted),
       promotion_budget: number(body.budget),
-      client_visible: true
+      client_visible: Boolean(body.clientVisible)
     })
     .select("id")
     .single();

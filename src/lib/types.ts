@@ -39,7 +39,9 @@ export type ContentType =
   | "Video"
   | "Copy"
   | "Landing"
-  | "Miniatura";
+  | "Miniatura"
+  | "GBP"
+  | "WhatsApp";
 
 export type ContentStatus =
   | "idea"
@@ -76,6 +78,11 @@ export type Client = {
   phone?: string | null;
   contactName?: string | null;
   website?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
+  googleBusinessProfileUrl?: string | null;
+  whatsappUrl?: string | null;
+  internalNotes?: string | null;
   industry: string;
   status: ClientStatus;
   city: string;
@@ -213,6 +220,7 @@ export type ContentItem = {
   notes?: string | null;
   assignedTo?: string | null;
   isDemo?: boolean;
+  clientVisible?: boolean;
   isPromoted?: boolean;
   promotionBudget?: number;
   views: number;
@@ -340,14 +348,54 @@ export type CalendarEvent = {
 };
 
 export type ContentIdea = {
+  code?: string;
   title: string;
   objective: string;
   format: ContentType;
   funnelStage: string;
+  pain: string;
+  centralIdea: string;
+  hook: string;
+  screenText: string;
+  voiceover: string;
+  shot1: string;
+  shot2: string;
+  shot3: string;
+  broll: string;
+  resources: string;
+  suggestedDate: string;
+  promoted: boolean;
+  adsSuggestion: string | null;
   copyBase: string;
+  caption: string;
   cta: string;
   visualBrief: string;
   strategicReason: string;
+  aida: {
+    attention: string;
+    interest: string;
+    desire: string;
+    action: string;
+  };
+};
+
+export type CampaignPlan = {
+  monthLabel: string;
+  packName: string;
+  packPrice: 390 | 590;
+  objective: string;
+  offer: string;
+  targetAudience: string;
+  mainPain: string;
+  promise: string;
+  brandTone: string;
+  visualStyle: string;
+  recommendedAdBudget: string;
+  gbpChecklist: string[];
+  whatsappChecklist: string[];
+  calendarSummary: string;
+  internalStatus: string;
+  pieces: ContentIdea[];
 };
 
 export type IntegrationStatus = {

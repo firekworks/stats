@@ -41,19 +41,19 @@ export function NewClientForm() {
       <form className="form mt-4" onSubmit={submit}>
         <div className="form-grid">
           <Field name="publicName" label="Nombre comercial" required />
-          <Field name="legalName" label="Razón social" />
-          <Field name="taxId" label="NIF/CIF" />
           <Field name="industry" label="Sector" />
           <Field name="city" label="Ciudad" />
-          <Field name="address" label="Dirección" />
-          <Field name="email" label="Email" type="email" />
-          <Field name="phone" label="Teléfono" />
           <Field name="contactName" label="Contacto" />
-          <Field name="planName" label="Plan" />
-          <Field name="monthlyFee" label="Fee mensual" type="number" />
-          <Field name="adBudget" label="Inversión anuncios" type="number" />
+          <Field name="phone" label="Teléfono" />
+          <Field name="email" label="Email" type="email" />
+          <label className="field">
+            <span>Pack</span>
+            <select name="pack" defaultValue="390">
+              <option value="390">Pack 390 - Base local</option>
+              <option value="590">Pack 590 - Crecimiento local</option>
+            </select>
+          </label>
         </div>
-        <Field name="driveFolderId" label="Carpeta Drive URL/ID" />
         <div className="form-grid">
           <label className="field">
             <span>Estado</span>
@@ -70,7 +70,22 @@ export function NewClientForm() {
               <option value="demo">Demo</option>
             </select>
           </label>
+          <Field name="driveFolderId" label="Carpeta Drive vinculada" />
+          <Field name="instagramUrl" label="Cuenta Instagram" />
+          <Field name="facebookUrl" label="Página Facebook" />
+          <Field name="googleBusinessProfileUrl" label="Google Business Profile" />
         </div>
+        <details className="compact-disclosure">
+          <summary>Datos internos y fiscales</summary>
+          <div className="form-grid mt-4">
+            <Field name="legalName" label="Razón social" />
+            <Field name="taxId" label="NIF/CIF" />
+            <Field name="address" label="Dirección" />
+            <Field name="monthlyFee" label="Fee manual" type="number" />
+            <Field name="adBudget" label="Ads manual" type="number" />
+          </div>
+          <TextArea name="internalNotes" label="Notas internas" rows={3} />
+        </details>
         <SubmitButton icon="plus" label="Crear cliente" state={state} />
         <FormMessage message={message} state={state} />
       </form>
@@ -116,10 +131,20 @@ export function ClientSettingsForm({ client }: { client: Client }) {
         <Field name="contactName" label="Contacto" defaultValue={client.contactName ?? ""} />
         <Field name="email" label="Email" type="email" defaultValue={client.billingEmail ?? ""} />
         <Field name="phone" label="Teléfono" defaultValue={client.phone ?? ""} />
-        <Field name="planName" label="Plan" defaultValue={client.planName} />
+        <label className="field">
+          <span>Pack</span>
+          <select name="pack" defaultValue={String(client.monthlyFee >= 540 ? 590 : 390)}>
+            <option value="390">Pack 390 - Base local</option>
+            <option value="590">Pack 590 - Crecimiento local</option>
+          </select>
+        </label>
+        <Field name="planName" label="Nombre pack" defaultValue={client.planName} />
         <Field name="monthlyFee" label="Fee mensual" type="number" defaultValue={String(client.monthlyFee)} />
         <Field name="adBudget" label="Presupuesto anuncios" type="number" defaultValue={String(client.adBudget ?? 0)} />
         <Field name="driveFolderId" label="Carpeta Drive" defaultValue={client.driveFolderId ?? ""} />
+        <Field name="instagramUrl" label="Instagram" defaultValue={client.instagramUrl ?? ""} />
+        <Field name="facebookUrl" label="Facebook" defaultValue={client.facebookUrl ?? ""} />
+        <Field name="googleBusinessProfileUrl" label="Google Business Profile" defaultValue={client.googleBusinessProfileUrl ?? ""} />
       </div>
       <label className="field">
         <span>Estado</span>
@@ -129,6 +154,7 @@ export function ClientSettingsForm({ client }: { client: Client }) {
           <option value="churned">Baja</option>
         </select>
       </label>
+      <TextArea name="internalNotes" label="Notas internas" defaultValue={client.internalNotes ?? ""} rows={4} />
       <SubmitButton icon="save" label="Guardar cambios" state={state} />
       <FormMessage message={message} state={state} />
     </form>
@@ -259,9 +285,24 @@ export function NewContentPieceForm({
           <Field name="canvaUrl" label="Canva URL" />
           <Field name="budget" label="Presupuesto promocionado" type="number" />
         </div>
+        <label className="field">
+          <span>Estado</span>
+          <select name="status" defaultValue="idea">
+            <option value="idea">Idea</option>
+            <option value="recorded">Grabar</option>
+            <option value="editing">Editar</option>
+            <option value="pending_approval">Revisar</option>
+            <option value="scheduled">Programado</option>
+            <option value="published">Publicado</option>
+          </select>
+        </label>
         <label className="check-field">
           <input name="promoted" type="checkbox" value="true" />
           <span>Promocionado</span>
+        </label>
+        <label className="check-field">
+          <input name="clientVisible" type="checkbox" value="true" />
+          <span>Visible en portal cliente</span>
         </label>
         <SubmitButton icon="plus" label="Crear pieza" state={state} />
         <FormMessage message={message} state={state} />
@@ -334,6 +375,25 @@ function Field({
     <label className="field">
       <span>{label}</span>
       <input name={name} type={type} defaultValue={defaultValue} required={required} />
+    </label>
+  );
+}
+
+function TextArea({
+  name,
+  label,
+  defaultValue = "",
+  rows = 4
+}: {
+  name: string;
+  label: string;
+  defaultValue?: string;
+  rows?: number;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <textarea name={name} defaultValue={defaultValue} rows={rows} />
     </label>
   );
 }

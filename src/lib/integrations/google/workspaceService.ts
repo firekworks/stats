@@ -72,19 +72,36 @@ export async function listGoogleDriveFilesForClient({
   }
 
   const targetFolder = folderId || getGoogleDriveRootFolderId();
-  const client = await getOAuthClient(integration);
-  const { google } = await import("googleapis");
-  const drive = google.drive({ version: "v3", auth: client });
-  const response = await drive.files.list({
+  const accessToken = getAccessToken(integration);
+
+  if (!accessToken) {
+    return { files: [] as GoogleFile[], reason: "not_connected" as const };
+  }
+
+  const params = new URLSearchParams({
     q: `'${targetFolder}' in parents and trashed = false`,
-    pageSize: 30,
+    pageSize: "30",
     fields: "files(id,name,mimeType,webViewLink,modifiedTime,thumbnailLink)",
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true"
   });
+  const response = await fetch(
+    `https://www.googleapis.com/drive/v3/files?${params.toString()}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store"
+    }
+  );
+  const body = (await response.json().catch(() => ({}))) as {
+    files?: Array<Partial<GoogleFile>>;
+  };
+
+  if (!response.ok) {
+    return { files: [] as GoogleFile[], reason: "not_connected" as const };
+  }
 
   return {
-    files: (response.data.files ?? []).map((file) => ({
+    files: (body.files ?? []).map((file) => ({
       id: file.id ?? "",
       name: file.name ?? "Archivo",
       mimeType: file.mimeType ?? "",
@@ -111,50 +128,50 @@ export async function createGoogleCalendarEvent({
     return { id: null, status: "not_connected" as const };
   }
 
-  const client = await getOAuthClient(integration);
-  const { google } = await import("googleapis");
-  const calendar = google.calendar({ version: "v3", auth: client });
+  const accessToken = getAccessToken(integration);
+
+  if (!accessToken) {
+    return { id: null, status: "not_connected" as const };
+  }
+
   const calendarId = readServerEnv("GOOGLE_CALENDAR_ID") ?? "primary";
   const start = new Date(input.startAt);
   const end = input.endAt
     ? new Date(input.endAt)
     : new Date(start.getTime() + 60 * 60 * 1000);
-  const response = await calendar.events.insert({
-    calendarId,
-    requestBody: {
-      summary: input.title,
-      description: input.notes ?? undefined,
-      location: input.location ?? undefined,
-      start: { dateTime: start.toISOString() },
-      end: { dateTime: end.toISOString() }
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+      calendarId
+    )}/events`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        summary: input.title,
+        description: input.notes ?? undefined,
+        location: input.location ?? undefined,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() }
+      }),
+      cache: "no-store"
     }
-  });
+  );
+  const body = (await response.json().catch(() => ({}))) as { id?: string };
 
-  return { id: response.data.id ?? null, status: "created" as const };
+  return {
+    id: response.ok ? body.id ?? null : null,
+    status: response.ok ? ("created" as const) : ("not_connected" as const)
+  };
 }
 
-async function getOAuthClient(integration: DbRow) {
-  const { google } = await import("googleapis");
-  const client = new google.auth.OAuth2(
-    readServerEnv("GOOGLE_CLIENT_ID") ?? undefined,
-    readServerEnv("GOOGLE_CLIENT_SECRET") ?? undefined,
-    readServerEnv("GOOGLE_REDIRECT_URI") ?? undefined
-  );
+function getAccessToken(integration: DbRow) {
   const encryptedAccess =
     typeof integration.access_token_encrypted === "string"
       ? integration.access_token_encrypted
       : null;
-  const encryptedRefresh =
-    typeof integration.refresh_token_encrypted === "string"
-      ? integration.refresh_token_encrypted
-      : null;
-  client.setCredentials({
-    access_token: decryptToken(encryptedAccess) ?? undefined,
-    refresh_token: decryptToken(encryptedRefresh) ?? undefined,
-    expiry_date: integration.token_expires_at
-      ? new Date(String(integration.token_expires_at)).getTime()
-      : undefined
-  });
 
-  return client;
+  return decryptToken(encryptedAccess);
 }

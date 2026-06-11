@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Loader2, Sparkles } from "lucide-react";
-import type { ContentIdea } from "@/lib/types";
+import type { CampaignPlan, ContentIdea } from "@/lib/types";
 
 export function ContentIdeaGenerator({
   clientId,
@@ -12,6 +12,8 @@ export function ContentIdeaGenerator({
   clientName: string;
 }) {
   const [ideas, setIdeas] = useState<ContentIdea[]>([]);
+  const [plan, setPlan] = useState<CampaignPlan | null>(null);
+  const [created, setCreated] = useState<{ campaign: number; content: number; events: number } | null>(null);
   const [approved, setApproved] = useState<Record<string, boolean>>({});
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
     "idle"
@@ -34,8 +36,14 @@ export function ContentIdeaGenerator({
       return;
     }
 
-    const payload = (await response.json()) as { ideas?: ContentIdea[] };
+    const payload = (await response.json()) as {
+      ideas?: ContentIdea[];
+      plan?: CampaignPlan;
+      created?: { campaign: number; content: number; events: number };
+    };
     setIdeas(payload.ideas ?? []);
+    setPlan(payload.plan ?? null);
+    setCreated(payload.created ?? null);
     setState("done");
   }
 
@@ -52,29 +60,56 @@ export function ContentIdeaGenerator({
         ) : (
           <Sparkles size={16} />
         )}
-        Generar estrategia
+        Generar campaña interna
       </button>
       {state === "error" ? (
         <div className="notice-card">
           <strong>No se pudo generar</strong>
           <span className="mt-2 block text-sm">
-            Revisa la sesion admin o las variables de IA. El fallback interno no
-            expone datos del cliente.
+            Revisa la sesión admin. El generador solo escribe datos internos.
           </span>
+        </div>
+      ) : null}
+      {state === "done" && created ? (
+        <div className="notice-card notice-success">
+          <strong>Campaña interna creada</strong>
+          <span className="mt-2 block text-sm">
+            {created.content} piezas y {created.events} eventos añadidos. Nada se muestra al cliente hasta marcarlo visible.
+          </span>
+        </div>
+      ) : null}
+      {plan ? (
+        <div className="strategy-grid">
+          <div className="small-stat">
+            <span className="metric-label">Pack</span>
+            <strong>{plan.packName}</strong>
+          </div>
+          <div className="small-stat">
+            <span className="metric-label">Objetivo</span>
+            <strong>{plan.objective}</strong>
+          </div>
+          <div className="small-stat">
+            <span className="metric-label">Oferta</span>
+            <strong>{plan.offer}</strong>
+          </div>
+          <div className="small-stat">
+            <span className="metric-label">Ads</span>
+            <strong>{plan.recommendedAdBudget}</strong>
+          </div>
         </div>
       ) : null}
       {ideas.length ? (
         <div className="strategy-ideas">
-          <span className="metric-label">Ideas para {clientName}</span>
+          <span className="metric-label">Plan interno para {clientName}</span>
           {ideas.map((idea) => (
             <details
               className="strategy-idea"
-              key={`${idea.title}-${idea.cta}`}
+              key={`${idea.code}-${idea.title}-${idea.cta}`}
               open={approved[idea.title]}
             >
               <summary>
                 <span>
-                  <strong>{idea.title}</strong>
+                  <strong>{idea.code ? `${idea.code} · ` : ""}{idea.title}</strong>
                   <small>
                     {idea.format} · {idea.funnelStage} · {idea.cta}
                   </small>
@@ -87,10 +122,22 @@ export function ContentIdeaGenerator({
               </summary>
               <div className="strategy-idea-body">
                 <label className="field">
-                  <span>Copy base editable</span>
+                  <span>Caption editable</span>
+                  <textarea defaultValue={idea.caption} rows={3} />
+                </label>
+                <label className="field">
+                  <span>Guion AIDA interno</span>
                   <textarea defaultValue={idea.copyBase} rows={3} />
                 </label>
                 <div className="strategy-grid">
+                  <div className="small-stat">
+                    <span className="metric-label">Dolor</span>
+                    <strong>{idea.pain}</strong>
+                  </div>
+                  <div className="small-stat">
+                    <span className="metric-label">Gancho</span>
+                    <strong>{idea.hook}</strong>
+                  </div>
                   <div className="small-stat">
                     <span className="metric-label">Visual</span>
                     <strong>{idea.visualBrief}</strong>
@@ -100,6 +147,23 @@ export function ContentIdeaGenerator({
                     <strong>{idea.strategicReason}</strong>
                   </div>
                 </div>
+                <details className="compact-disclosure">
+                  <summary>Guion, planos y recursos</summary>
+                  <div className="script-grid">
+                    <span><strong>Atención</strong>{idea.aida.attention}</span>
+                    <span><strong>Interés</strong>{idea.aida.interest}</span>
+                    <span><strong>Deseo</strong>{idea.aida.desire}</span>
+                    <span><strong>Acción</strong>{idea.aida.action}</span>
+                    <span><strong>Texto</strong>{idea.screenText}</span>
+                    <span><strong>Voz</strong>{idea.voiceover}</span>
+                    <span><strong>Plano 1</strong>{idea.shot1}</span>
+                    <span><strong>Plano 2</strong>{idea.shot2}</span>
+                    <span><strong>Plano 3</strong>{idea.shot3}</span>
+                    <span><strong>B-roll</strong>{idea.broll}</span>
+                    <span><strong>Recursos</strong>{idea.resources}</span>
+                    <span><strong>Ads</strong>{idea.adsSuggestion ?? "No promocionar de inicio"}</span>
+                  </div>
+                </details>
                 <button
                   className="button button-secondary"
                   type="button"

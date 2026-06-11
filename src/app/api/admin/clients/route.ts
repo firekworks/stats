@@ -15,10 +15,15 @@ type ClientPayload = {
   email?: string;
   phone?: string;
   contactName?: string;
+  pack?: "390" | "590";
   planName?: string;
   monthlyFee?: number;
   adBudget?: number;
   driveFolderId?: string;
+  instagramUrl?: string;
+  facebookUrl?: string;
+  googleBusinessProfileUrl?: string;
+  internalNotes?: string;
   status?: string;
   type?: "real" | "demo";
 };
@@ -36,9 +41,9 @@ export async function POST(request: Request) {
 
   const slug = slugify(publicName);
   const status = normalizeClientStatus(body.status);
-  const { data, error } = await auth.profile.admin
-    .from("clients")
-    .insert({
+  const pack = resolvePack(body.pack, body.monthlyFee);
+  const driveValue = clean(body.driveFolderId);
+  const payload = {
       name: publicName,
       slug,
       legal_name: clean(body.legalName) || publicName,
@@ -47,18 +52,25 @@ export async function POST(request: Request) {
       city: clean(body.city),
       billing_address: clean(body.address),
       billing_email: clean(body.email),
+      commercial_contact_email: clean(body.email),
       phone: clean(body.phone),
       commercial_contact_name: clean(body.contactName),
-      plan_name: clean(body.planName),
-      service_fee: number(body.monthlyFee),
-      monthly_budget: number(body.adBudget),
-      drive_folder_id: extractDriveFolderId(clean(body.driveFolderId)),
+      plan_name: clean(body.planName) || pack.planName,
+      service_fee: number(body.monthlyFee) || pack.fee,
+      monthly_budget: number(body.adBudget) || pack.ads,
+      drive_folder_id: extractDriveFolderId(driveValue),
+      drive_folder_url: driveValue?.startsWith("http") ? driveValue : null,
+      instagram_url: clean(body.instagramUrl),
+      facebook_url: clean(body.facebookUrl),
+      google_business_profile_url: clean(body.googleBusinessProfileUrl),
+      internal_notes: clean(body.internalNotes),
       status,
       source: body.type === "demo" ? "demo" : "stats",
       is_demo: body.type === "demo",
       client_portal_enabled: true,
       portal_status: body.type === "demo" ? "demo" : "active"
-    })
+    };
+  const { data, error } = await insertClient(auth.profile.admin, payload)
     .select("id, slug")
     .single();
 
@@ -83,6 +95,24 @@ function clean(value?: string | null) {
 function number(value: unknown) {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function resolvePack(pack?: string, monthlyFee?: number) {
+  const fee = Number(monthlyFee ?? 0);
+  const resolved = pack === "590" || fee >= 540 ? 590 : 390;
+
+  return resolved === 590
+    ? { fee: 590, ads: 150, planName: "Pack 590 - Crecimiento local" }
+    : { fee: 390, ads: 90, planName: "Pack 390 - Base local" };
+}
+
+function insertClient(
+  db: { from: (table: string) => { insert: (payload: Record<string, unknown>) => unknown } },
+  payload: Record<string, unknown>
+) {
+  return db.from("clients").insert(payload) as {
+    select: (columns: string) => { single: () => Promise<{ data: unknown; error: { message: string } | null }> };
+  };
 }
 
 function slugify(value: string) {

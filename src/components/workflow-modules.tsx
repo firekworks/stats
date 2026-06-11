@@ -15,7 +15,6 @@ import {
   ReceiptText,
   Route,
   Sparkles,
-  Target,
   TrendingUp
 } from "lucide-react";
 import { CalendarEventForm } from "@/components/calendar-event-form";
@@ -485,8 +484,32 @@ export function ContentLibraryGrid({
   }
 
   return (
-    <div className="content-library-grid mt-5">
-      {content.map((item) => {
+    <div className="mt-5 grid gap-5">
+      {showInternal ? (
+        <div className="content-filters">
+          <select aria-label="Filtrar por estado" defaultValue="">
+            <option value="">Estado</option>
+            <option value="idea">Idea</option>
+            <option value="recorded">Grabar</option>
+            <option value="editing">Editar</option>
+            <option value="pending_approval">Revisar</option>
+            <option value="scheduled">Programado</option>
+            <option value="published">Publicado</option>
+          </select>
+          <select aria-label="Filtrar por formato" defaultValue="">
+            <option value="">Formato</option>
+            <option value="Reel">Reel</option>
+            <option value="Carrusel">Carrusel</option>
+            <option value="Post">Post</option>
+            <option value="Story">Story</option>
+            <option value="GBP">GBP</option>
+            <option value="WhatsApp">WhatsApp</option>
+          </select>
+          <input aria-label="Filtrar por mes o campaña" placeholder="Mes o campaña" />
+        </div>
+      ) : null}
+      <div className="content-library-grid">
+        {content.map((item) => {
         const client = clients.find((entry) => entry.id === item.clientId);
 
         return (
@@ -517,7 +540,7 @@ export function ContentLibraryGrid({
                   <span className="badge badge-gray">Drive pendiente</span>
                 ) : null}
                 {item.canvaViewUrl ? (
-                  <ButtonLink href={item.canvaViewUrl} variant="ghost">
+                  <ButtonLink href={item.canvaEditUrl ?? item.canvaViewUrl} variant="ghost">
                     <ExternalLink size={16} />
                     Canva
                   </ButtonLink>
@@ -525,12 +548,83 @@ export function ContentLibraryGrid({
                   <span className="badge badge-gray">Canva pendiente</span>
                 ) : null}
               </div>
+              {showInternal ? <InternalScriptDetails item={item} /> : null}
             </div>
           </article>
         );
-      })}
+        })}
+      </div>
     </div>
   );
+}
+
+function InternalScriptDetails({ item }: { item: ContentItem }) {
+  const script = scriptFromPreview(item);
+
+  return (
+    <details className="compact-disclosure mt-4">
+      <summary>Abrir pieza</summary>
+      <div className="script-tabs">
+        <details open>
+          <summary>Resumen</summary>
+          <p>{item.objective ?? "Objetivo pendiente"}</p>
+        </details>
+        <details>
+          <summary>Guion</summary>
+          <div className="script-grid">
+            <span><strong>Fase</strong>{item.funnelStage ?? "Sin fase"}</span>
+            <span><strong>Gancho</strong>{item.hook ?? "Pendiente"}</span>
+            <span><strong>Atención</strong>{script.aida?.attention ?? "Pendiente"}</span>
+            <span><strong>Interés</strong>{script.aida?.interest ?? "Pendiente"}</span>
+            <span><strong>Deseo</strong>{script.aida?.desire ?? "Pendiente"}</span>
+            <span><strong>Acción</strong>{script.aida?.action ?? item.cta ?? "Pendiente"}</span>
+          </div>
+        </details>
+        <details>
+          <summary>Grabación</summary>
+          <div className="script-grid">
+            {(script.shots ?? []).map((shot, index) => (
+              <span key={shot}><strong>Plano {index + 1}</strong>{shot}</span>
+            ))}
+            <span><strong>B-roll</strong>{script.broll ?? item.visualBrief ?? "Pendiente"}</span>
+          </div>
+        </details>
+        <details>
+          <summary>Copy</summary>
+          <p>{item.caption ?? item.learning ?? "Copy pendiente"}</p>
+        </details>
+        <details>
+          <summary>Ads</summary>
+          <p>{script.adsSuggestion ?? (item.isPromoted ? "Promocionar" : "Sin promoción inicial")}</p>
+        </details>
+        <details>
+          <summary>Estado</summary>
+          <p>{statusLabel(item.status)} · {item.clientVisible ? "Visible en portal" : "Interna"}</p>
+        </details>
+      </div>
+    </details>
+  );
+}
+
+function scriptFromPreview(item: ContentItem) {
+  const data = item.previewData ?? {};
+
+  return {
+    aida: readObject(data, "aida") as
+      | { attention?: string; interest?: string; desire?: string; action?: string }
+      | null,
+    shots: Array.isArray(data.shots) ? data.shots.map(String) : [],
+    broll: typeof data.broll === "string" ? data.broll : null,
+    adsSuggestion:
+      typeof data.adsSuggestion === "string" ? data.adsSuggestion : null
+  };
+}
+
+function readObject(data: Record<string, unknown>, key: string) {
+  const value = data[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value
+    : null;
 }
 
 function publicContentStatus(status: string) {
@@ -556,9 +650,18 @@ export function ClientPortalView({
   const latest = data.metrics[0];
   const campaign = data.campaigns[0];
   const visibleContent = data.content.filter((item) =>
+    item.clientVisible !== false &&
     ["pending_approval", "scheduled", "published"].includes(item.status)
   );
-  const upcomingEvents = data.calendarEvents;
+  const upcomingEvents = data.calendarEvents.filter((event) => {
+    const linkedContent = data.content.find((item) => item.id === event.contentItemId);
+
+    if (linkedContent) {
+      return visibleContent.some((item) => item.id === linkedContent.id);
+    }
+
+    return event.status === "confirmed" && !event.notes?.toLowerCase().includes("intern");
+  });
   const reportHref = `/api/reports/monthly?clientId=${client.id}${
     latest ? `&month=${latest.month}&year=${latest.year}` : ""
   }`;
@@ -695,7 +798,6 @@ export function ClientInternalDetail({
   data: PortalData;
 }) {
   const client = data.selectedClient;
-  const score = data.scores.find((item) => item.clientId === client.id);
   const clientEvents = data.calendarEvents.filter(
     (event) => event.clientId === client.id
   );
@@ -763,37 +865,6 @@ export function ClientInternalDetail({
         </div>
       </section>
 
-      <section className="grid grid-4">
-        <MetricCard
-          icon={CheckCircle2}
-          label="Próxima acción"
-          value={nextTask ? "Activa" : "Pendiente"}
-          helper={nextAction}
-          tone="blue"
-        />
-        <MetricCard
-          icon={CalendarDays}
-          label="Próximo evento"
-          value={nextEvent ? formatDate(nextEvent.startAt) : "Sin fecha"}
-          helper={nextEvent?.title ?? "Añade un evento"}
-          tone="mint"
-        />
-        <MetricCard
-          icon={Target}
-          label="Última entrega"
-          value={lastDelivery?.contentCode ?? lastDelivery?.type ?? "Sin pieza"}
-          helper={lastDelivery?.title ?? "Sin contenido entregado"}
-          tone="green"
-        />
-        <MetricCard
-          icon={FileBarChart}
-          label="Resultado del mes"
-          value={latestMetric ? formatCompactNumber(latestMetric.reach) : "Sin datos"}
-          helper={monthResult}
-          tone="orange"
-        />
-      </section>
-
       <nav className="detail-tabs">
         <a href="#resumen">Resumen</a>
         <a href="#campana">Campaña del mes</a>
@@ -813,10 +884,18 @@ export function ClientInternalDetail({
             action={<StatusBadge status={client.status} />}
           />
           <div className="mt-5 grid gap-3">
-            <SmallWorkflowStat label="Plan" value={client.planName} />
+            <SmallWorkflowStat label="Pack activo" value={client.planName} />
+            <SmallWorkflowStat
+              label="Objetivo del mes"
+              value={currentCampaign?.objective ?? client.objective ?? "Definir objetivo"}
+            />
             <SmallWorkflowStat
               label="Próxima acción"
               value={nextAction}
+            />
+            <SmallWorkflowStat
+              label="Próximo evento"
+              value={nextEvent ? `${nextEvent.title} · ${formatDate(nextEvent.startAt)}` : "Sin evento"}
             />
             <SmallWorkflowStat
               label="Última entrega"
@@ -826,6 +905,7 @@ export function ClientInternalDetail({
               label="Último resultado"
               value={monthResult}
             />
+            <SmallWorkflowStat label="Estado general" value={statusLabel(client.status)} />
           </div>
         </Card>
         {activeAlerts.length ? (
@@ -904,7 +984,7 @@ export function ClientInternalDetail({
           </Card>
 
           <Card>
-            <CardHeader title="Generar estrategia" description="IA interna" />
+            <CardHeader title="Generar campaña interna" description="Solo admin" />
             <div className="mt-5">
               <ContentIdeaGenerator
                 clientId={client.id}
@@ -940,7 +1020,7 @@ export function ClientInternalDetail({
                   <div>
                     <strong>{item.title}</strong>
                     <span>
-                      {item.contentCode ?? item.type} · {item.funnelStage ?? "Sin fase"}
+                      {item.contentCode ?? item.type} · {item.funnelStage ?? "Sin fase"} · {item.clientVisible ? "Portal" : "Interna"}
                     </span>
                   </div>
                   <StatusBadge status={item.status} />
@@ -1195,10 +1275,6 @@ export function ClientInternalDetail({
             <SmallWorkflowStat
               label="Portal"
               value={client.isDemo ? `/demo/${client.slug}` : `/portal/${client.slug}`}
-            />
-            <SmallWorkflowStat
-              label="Nivel interno"
-              value={`${score?.levelName ?? "Nuevo"} · ${score?.score ?? 0}/100`}
             />
             <DriveAssetsPanel client={client} />
           </div>

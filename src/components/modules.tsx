@@ -504,6 +504,17 @@ export function IntegrationsModule({
   integrations: IntegrationOverviewRow[];
   assets: ConnectedAssetOverviewRow[];
 }) {
+  const googleReady = envReady([
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REDIRECT_URI",
+    "ENCRYPTION_KEY"
+  ]);
+  const metaReady = envReady(["META_APP_ID", "META_APP_SECRET", "META_REDIRECT_URI"]);
+  const canvaReady = envReady(["CANVA_CLIENT_ID", "CANVA_CLIENT_SECRET"]);
+  const whatsappReady = envReady(["WHATSAPP_BUSINESS_ACCOUNT_ID"]);
+  const metricoolReady = envReady(["METRICOOL_API_KEY"]);
+
   return (
     <div className="grid gap-6">
       <section className="grid grid-2">
@@ -516,26 +527,33 @@ export function IntegrationsModule({
           <div className="mt-5 list">
             <ConnectorStatus
               title="Meta Ads + Instagram + Facebook"
-              text="OAuth, activos, insights de Ads y contenido social."
-              ready
+              text={metaReady ? "OAuth, activos e insights listos." : "Faltan META_APP_ID, META_APP_SECRET o META_REDIRECT_URI."}
+              ready={metaReady}
             />
             <ConnectorStatus
               title="Google Calendar"
-              text="OAuth preparado con calendar.events y sincronización desde eventos."
-              ready
+              text={googleReady ? "OAuth preparado con calendar.events." : "Faltan GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI o ENCRYPTION_KEY."}
+              ready={googleReady}
             />
             <ConnectorStatus
               title="Google Drive"
-              text="Carpeta raíz COMERCIOS y lectura de archivos por carpeta de cliente."
-              ready
+              text={googleReady ? "Carpeta raíz COMERCIOS y lectura por cliente." : "Pendiente de OAuth Google; admite enlace manual por cliente."}
+              ready={googleReady}
             />
             <ConnectorStatus
               title="Canva"
-              text="Enlaces manuales por pieza; campo listo para conectar API cuando proceda."
+              text={canvaReady ? "API lista; enlaces manuales siguen disponibles." : "Faltan CANVA_CLIENT_ID y CANVA_CLIENT_SECRET; usar enlace manual."}
+              ready={canvaReady}
             />
             <ConnectorStatus
               title="WhatsApp Cloud API"
-              text="Webhooks y activos preparados; metricas solo con eventos reales."
+              text={whatsappReady ? "Cuenta Business configurada." : "Falta WHATSAPP_BUSINESS_ACCOUNT_ID; eventos internos siguen funcionando."}
+              ready={whatsappReady}
+            />
+            <ConnectorStatus
+              title="Metricool"
+              text={metricoolReady ? "API key configurada para futura sincronización." : "Pendiente de configurar METRICOOL_API_KEY."}
+              ready={metricoolReady}
             />
             <ConnectorStatus
               title="PDF"
@@ -782,10 +800,14 @@ function ConnectorStatus({
         <span>{text}</span>
       </div>
       <span className={ready ? "badge badge-blue" : "badge badge-gray"}>
-        {ready ? "Operativo" : "Placeholder"}
+        {ready ? "Configurado" : "Pendiente de configurar"}
       </span>
     </div>
   );
+}
+
+function envReady(names: string[]) {
+  return names.every((name) => Boolean(process.env[name]));
 }
 
 function providerStatusText(
@@ -840,22 +862,19 @@ export function ClientsModule({ data }: { data: PortalData }) {
       </div>
       <div className="client-list mt-5">
         {data.clients.map((client) => {
-          const metric = data.metrics.find((item) => item.clientId === client.id);
           const task = nextClientTask(data.tasks, client.id);
           const event = nextClientEvent(data.calendarEvents, client.id);
-          const invoice = latestClientInvoice(data.invoices, client.id);
-          const result = metric
-            ? `${formatNumber(metric.leads)} leads · ${formatNumber(
-                metric.reach
-              )} alcance`
-            : "Sin métrica mensual";
+          const nextStep = task?.title ?? event?.title ?? "Definir campaña del mes";
+          const nextDate = event?.startAt
+            ? formatDateShort(event.startAt)
+            : task?.dueDate ?? "Sin fecha";
 
           return (
             <div className="client-row" key={client.id}>
               <div className="client-name-cell">
                 <strong>{client.publicName}</strong>
                 <span>
-                  {client.industry} · {client.city} · {client.planName}
+                  {client.industry} · {client.city}
                 </span>
               </div>
               <div className="client-status-cell">
@@ -864,27 +883,17 @@ export function ClientsModule({ data }: { data: PortalData }) {
                 ) : (
                   <StatusBadge status={client.status} />
                 )}
-                <span>{formatCurrency(client.monthlyFee)}/mes</span>
+                <span>Pack {client.monthlyFee >= 540 ? "590" : "390"}</span>
               </div>
               <div className="client-summary">
-                <span className="metric-label">Próximo evento</span>
-                <strong>{event?.title ?? task?.title ?? "Sin evento"}</strong>
-                <span>
-                  {event?.startAt
-                      ? `Evento: ${formatDateShort(event.startAt)}`
-                      : task?.dueDate
-                        ? `Acción: ${task.dueDate}`
-                        : "Pendiente de planificar"}
-                </span>
+                <span className="metric-label">Próximo paso</span>
+                <strong>{nextStep}</strong>
+                <span>{client.planName}</span>
               </div>
               <div className="client-summary">
-                <span className="metric-label">Último resultado clave</span>
-                <strong>{result}</strong>
-                <span>
-                  {invoice
-                    ? `${invoice.invoiceNumber} · ${statusLabel(invoice.status)}`
-                    : "Sin factura reciente"}
-                </span>
+                <span className="metric-label">Próxima fecha</span>
+                <strong>{nextDate}</strong>
+                <span>{event ? "Evento" : task ? "Acción" : "Pendiente"}</span>
               </div>
               <div className="client-row-actions">
                 <ButtonLink href={`/admin/clients/${client.id}`} variant="secondary">

@@ -1,14 +1,3 @@
-import {
-  PDFDocument,
-  type PDFFont,
-  type PDFImage,
-  type PDFPage,
-  type RGB,
-  StandardFonts,
-  rgb
-} from "pdf-lib";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { BillingSettings } from "@/lib/billing-settings";
 import {
   formatCurrency,
@@ -17,13 +6,6 @@ import {
   formatNumber
 } from "@/lib/format";
 import type { Campaign, Client, ContentItem, Invoice, MonthlyMetric } from "@/lib/types";
-
-const ink = rgb(0.11, 0.11, 0.12);
-const muted = rgb(0.43, 0.43, 0.45);
-const blue = rgb(0, 0.44, 0.89);
-const line = rgb(0.9, 0.9, 0.92);
-const soft = rgb(0.97, 0.97, 0.98);
-const white = rgb(1, 1, 1);
 
 type PdfClient = Client & {
   taxId?: string | null;
@@ -47,8 +29,18 @@ export type InvoicePdfInput = {
   isDemoData?: boolean;
 };
 
+type Color = [number, number, number];
+type FontRef = "F1" | "F2";
+
+const ink: Color = [0.11, 0.11, 0.12];
+const muted: Color = [0.43, 0.43, 0.45];
+const blue: Color = [0, 0.44, 0.89];
+const line: Color = [0.9, 0.9, 0.92];
+const soft: Color = [0.97, 0.97, 0.98];
+const white: Color = [1, 1, 1];
+
 export async function buildMonthlyReportPdf(input: MonthlyReportPdfInput) {
-  const layout = await PdfLayout.create("Informe confidencial para cliente");
+  const layout = SimplePdfLayout.create("Informe confidencial para cliente");
   const { billing, client, metric, campaigns, content } = input;
   const bestContent = content.find((item) => item.id === metric.bestContentId);
   const roiLabel = metric.roiMode === "real" ? "ROI real" : "ROI estimado";
@@ -136,7 +128,7 @@ export async function buildMonthlyReportPdf(input: MonthlyReportPdfInput) {
 }
 
 export async function buildInvoicePdf(input: InvoicePdfInput) {
-  const layout = await PdfLayout.create("Factura privada");
+  const layout = SimplePdfLayout.create("Factura privada");
   const { billing, client, invoice } = input;
   const vatAmount = invoice.taxableBase * (invoice.vatRate / 100);
   const withholdingAmount = invoice.taxableBase * (invoice.withholdingRate / 100);
@@ -173,6 +165,7 @@ export async function buildInvoicePdf(input: InvoicePdfInput) {
     ],
     ["Total", formatCurrency(invoice.total)]
   ]);
+
   if (input.isDemoData) {
     layout.section(
       "Aviso",
@@ -189,65 +182,53 @@ export async function buildInvoicePdf(input: InvoicePdfInput) {
   return layout.save();
 }
 
-class PdfLayout {
-  private readonly doc: PDFDocument;
-  private readonly regular: PDFFont;
-  private readonly bold: PDFFont;
+class SimplePdfLayout {
+  private readonly pages: string[] = [];
   private readonly footerText: string;
-  private readonly brandImage: PDFImage | null;
-  private page: PDFPage;
+  private current = "";
   private pageNumber = 0;
   private y = 0;
 
-  private constructor(
-    doc: PDFDocument,
-    regular: PDFFont,
-    bold: PDFFont,
-    footerText: string,
-    brandImage: PDFImage | null
-  ) {
-    this.doc = doc;
-    this.regular = regular;
-    this.bold = bold;
+  private constructor(footerText: string) {
     this.footerText = footerText;
-    this.brandImage = brandImage;
-    this.page = this.doc.addPage([595, 842]);
-    this.decoratePage();
+    this.addPage();
   }
 
-  static async create(footerText: string) {
-    const doc = await PDFDocument.create();
-    const regular = await doc.embedFont(StandardFonts.Helvetica);
-    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-    const brandImage = await loadBrandImage(doc);
-
-    return new PdfLayout(doc, regular, bold, footerText, brandImage);
+  static create(footerText: string) {
+    return new SimplePdfLayout(footerText);
   }
 
   cover(billing: BillingSettings, title: string, main: string, subtitle: string) {
     this.drawBrand(billing);
     this.y = 718;
-    this.text(title, 58, this.y, 13, this.bold, blue);
+    this.text(title, 58, this.y, 13, "F2", blue);
     this.y -= 46;
-    this.paragraph(main, 44, this.bold, ink, 470, 48);
-    this.paragraph(subtitle, 15, this.regular, muted, 470, 22);
+    this.paragraph(main, 44, "F2", ink, 470, 48);
+    this.paragraph(subtitle, 15, "F1", muted, 470, 22);
     this.y -= 18;
   }
 
   addPage() {
-    this.page = this.doc.addPage([595, 842]);
-    this.decoratePage();
+    if (this.current) {
+      this.pages.push(this.current);
+    }
+    this.current = "";
+    this.pageNumber += 1;
+    this.y = 780;
+    this.line(58, 54, 535, 54, line);
+    this.text(`Firekworks Stats - ${this.footerText}`, 58, 34, 9, "F1", muted);
+    this.text(`Pagina ${this.pageNumber}`, 482, 34, 9, "F1", muted);
   }
 
   heading(title: string, size = 18) {
     this.ensure(size + 20);
-    this.text(title, 58, this.y, size, this.bold, ink);
+    this.text(title, 58, this.y, size, "F2", ink);
     this.y -= size + 18;
   }
 
   section(title: string, body: string) {
     this.heading(title, 16);
-    this.paragraph(body, 11, this.regular, muted, 470, 16);
+    this.paragraph(body, 11, "F1", muted, 470, 16);
     this.y -= 12;
   }
 
@@ -256,28 +237,20 @@ class PdfLayout {
     metrics.forEach(([label, value], index) => {
       const x = 58 + (index % 2) * 248;
       const y = this.y - Math.floor(index / 2) * 74;
-      this.page.drawRectangle({
-        x,
-        y: y - 52,
-        width: 222,
-        height: 58,
-        color: soft,
-        borderColor: line,
-        borderWidth: 1
-      });
-      this.text(label, x + 14, y - 17, 10, this.regular, muted);
-      this.text(value, x + 14, y - 41, 18, this.bold, ink);
+      this.rect(x, y - 52, 222, 58, soft, line);
+      this.text(label, x + 14, y - 17, 10, "F1", muted);
+      this.text(value, x + 14, y - 41, 18, "F2", ink);
     });
     this.y -= 158;
   }
 
   bulletList(items: string[]) {
     for (const item of items) {
-      const lines = this.wrap(item, this.regular, 11, 430);
+      const lines = this.wrap(item, 11, 430);
       this.ensure(lines.length * 16 + 12);
-      this.text("-", 58, this.y, 11, this.bold, blue);
+      this.text("-", 58, this.y, 11, "F2", blue);
       lines.forEach((lineText, index) => {
-        this.text(lineText, 76, this.y - index * 16, 11, this.regular, muted);
+        this.text(lineText, 76, this.y - index * 16, 11, "F1", muted);
       });
       this.y -= lines.length * 16 + 8;
     }
@@ -294,24 +267,24 @@ class PdfLayout {
   invoiceTable(invoice: Invoice) {
     this.heading("Conceptos", 16);
     this.ensure(42);
-    this.text("Concepto", 58, this.y, 10, this.bold, muted);
-    this.text("Cantidad", 352, this.y, 10, this.bold, muted);
-    this.text("Total", 470, this.y, 10, this.bold, muted);
+    this.text("Concepto", 58, this.y, 10, "F2", muted);
+    this.text("Cantidad", 352, this.y, 10, "F2", muted);
+    this.text("Total", 470, this.y, 10, "F2", muted);
     this.y -= 12;
-    this.page.drawLine({ start: { x: 58, y: this.y }, end: { x: 535, y: this.y }, color: line });
+    this.line(58, this.y, 535, this.y, line);
     this.y -= 20;
 
     for (const item of invoice.items) {
-      const lines = this.wrap(item.description, this.regular, 11, 270);
+      const lines = this.wrap(item.description, 11, 270);
       const rowHeight = Math.max(36, lines.length * 15 + 14);
       this.ensure(rowHeight + 10);
       lines.forEach((lineText, index) => {
-        this.text(lineText, 58, this.y - index * 15, 11, this.regular, ink);
+        this.text(lineText, 58, this.y - index * 15, 11, "F1", ink);
       });
-      this.text(String(item.quantity), 365, this.y, 11, this.regular, ink);
-      this.text(formatCurrency(item.total), 470, this.y, 11, this.bold, ink);
+      this.text(String(item.quantity), 365, this.y, 11, "F1", ink);
+      this.text(formatCurrency(item.total), 470, this.y, 11, "F2", ink);
       this.y -= rowHeight;
-      this.page.drawLine({ start: { x: 58, y: this.y + 8 }, end: { x: 535, y: this.y + 8 }, color: line });
+      this.line(58, this.y + 8, 535, this.y + 8, line);
     }
     this.y -= 10;
   }
@@ -321,56 +294,36 @@ class PdfLayout {
     rows.forEach(([label, value], index) => {
       const isTotal = index === rows.length - 1;
       const size = isTotal ? 17 : 11;
-      const color = isTotal ? blue : ink;
-      this.text(label, 340, this.y, size, isTotal ? this.bold : this.regular, muted);
-      this.text(value, 452, this.y, size, this.bold, color);
+      this.text(label, 340, this.y, size, isTotal ? "F2" : "F1", muted);
+      this.text(value, 452, this.y, size, "F2", isTotal ? blue : ink);
       this.y -= isTotal ? 34 : 22;
     });
     this.y -= 4;
   }
 
   save() {
-    return this.doc.save();
-  }
-
-  private decoratePage() {
-    this.pageNumber += 1;
-    this.y = 780;
-    this.page.drawLine({ start: { x: 58, y: 54 }, end: { x: 535, y: 54 }, color: line });
-    this.text(`Firekworks Stats - ${this.footerText}`, 58, 34, 9, this.regular, muted);
-    this.text(`Pagina ${this.pageNumber}`, 482, 34, 9, this.regular, muted);
+    if (this.current) {
+      this.pages.push(this.current);
+      this.current = "";
+    }
+    return createPdf(this.pages);
   }
 
   private drawBrand(billing: BillingSettings) {
-    if (this.brandImage) {
-      this.page.drawImage(this.brandImage, {
-        x: 58,
-        y: 790,
-        width: 36,
-        height: 36
-      });
-    } else {
-      this.page.drawRectangle({
-        x: 58,
-        y: 790,
-        width: 36,
-        height: 36,
-        color: ink
-      });
-      this.text("F", 70, 801, 16, this.bold, white);
-    }
-    this.text(billing.businessName || "Firekworks", 106, 812, 12, this.bold, ink);
-    this.text("Stats", 106, 796, 9, this.regular, muted);
+    this.rect(58, 790, 36, 36, ink, ink);
+    this.text("F", 70, 801, 16, "F2", white);
+    this.text(billing.businessName || "Firekworks", 106, 812, 12, "F2", ink);
+    this.text("Stats", 106, 796, 9, "F1", muted);
   }
 
   private infoColumn(x: number, title: string, lines: string[]) {
     let columnY = this.y;
-    this.text(title, x, columnY, 12, this.bold, ink);
+    this.text(title, x, columnY, 12, "F2", ink);
     columnY -= 22;
     for (const lineText of lines.filter(Boolean)) {
-      const wrapped = this.wrap(lineText, this.regular, 10, 205);
+      const wrapped = this.wrap(lineText, 10, 205);
       wrapped.forEach((item) => {
-        this.text(item, x, columnY, 10, this.regular, muted);
+        this.text(item, x, columnY, 10, "F1", muted);
         columnY -= 14;
       });
     }
@@ -379,12 +332,12 @@ class PdfLayout {
   private paragraph(
     body: string,
     size: number,
-    font: PDFFont,
-    color: RGB,
+    font: FontRef,
+    color: Color,
     width: number,
     lineHeight: number
   ) {
-    const lines = this.wrap(body, font, size, width);
+    const lines = this.wrap(body, size, width);
     for (const lineText of lines) {
       this.ensure(lineHeight + 8);
       this.text(lineText, 58, this.y, size, font, color);
@@ -392,7 +345,8 @@ class PdfLayout {
     }
   }
 
-  private wrap(text: string, font: PDFFont, size: number, maxWidth: number) {
+  private wrap(text: string, size: number, maxWidth: number) {
+    const maxChars = Math.max(18, Math.floor(maxWidth / (size * 0.52)));
     const paragraphs = clean(text).split("\n");
     const lines: string[] = [];
 
@@ -402,7 +356,7 @@ class PdfLayout {
 
       for (const word of words) {
         const next = current ? `${current} ${word}` : word;
-        if (font.widthOfTextAtSize(next, size) > maxWidth && current) {
+        if (next.length > maxChars && current) {
           lines.push(current);
           current = word;
         } else {
@@ -424,9 +378,78 @@ class PdfLayout {
     }
   }
 
-  private text(text: string, x: number, y: number, size: number, font: PDFFont, color: RGB) {
-    this.page.drawText(clean(text), { x, y, size, font, color });
+  private text(text: string, x: number, y: number, size: number, font: FontRef, color: Color) {
+    this.current += `BT ${colorCommand(color, "fill")} /${font} ${size} Tf ${x} ${y} Td (${escapePdfText(
+      clean(text)
+    )}) Tj ET\n`;
   }
+
+  private rect(x: number, y: number, width: number, height: number, fill: Color, stroke: Color) {
+    this.current += `${colorCommand(fill, "fill")} ${x} ${y} ${width} ${height} re f\n`;
+    this.current += `${colorCommand(stroke, "stroke")} 1 w ${x} ${y} ${width} ${height} re S\n`;
+  }
+
+  private line(x1: number, y1: number, x2: number, y2: number, color: Color) {
+    this.current += `${colorCommand(color, "stroke")} 1 w ${x1} ${y1} m ${x2} ${y2} l S\n`;
+  }
+}
+
+function createPdf(pages: string[]) {
+  const encoder = new TextEncoder();
+  const pageCount = pages.length;
+  const fontRegularId = 3 + pageCount * 2;
+  const fontBoldId = fontRegularId + 1;
+  const objects: string[] = [];
+
+  objects[0] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[1] = `<< /Type /Pages /Kids ${pages
+    .map((_, index) => `${3 + index * 2} 0 R`)
+    .join(" ")} /Count ${pageCount} >>`;
+
+  pages.forEach((content, index) => {
+    const pageId = 3 + index * 2;
+    const contentId = pageId + 1;
+    const stream = encoder.encode(content);
+    objects[pageId - 1] =
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] ` +
+      `/Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >> ` +
+      `/Contents ${contentId} 0 R >>`;
+    objects[contentId - 1] = `<< /Length ${stream.length} >>\nstream\n${content}endstream`;
+  });
+
+  objects[fontRegularId - 1] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[fontBoldId - 1] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>";
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(encoder.encode(pdf).length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+
+  const xrefOffset = encoder.encode(pdf).length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf +=
+    `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n` +
+    `startxref\n${xrefOffset}\n%%EOF`;
+
+  return encoder.encode(pdf);
+}
+
+function colorCommand(color: Color, mode: "fill" | "stroke") {
+  const suffix = mode === "fill" ? "rg" : "RG";
+  return `${color.map((value) => formatPdfNumber(value)).join(" ")} ${suffix}`;
+}
+
+function formatPdfNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(3).replace(/0+$/, "");
+}
+
+function escapePdfText(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
 
 function clean(value: string | number | null | undefined) {
@@ -435,13 +458,4 @@ function clean(value: string | number | null | undefined) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\x20-\x7E\n]/g, "");
-}
-
-async function loadBrandImage(doc: PDFDocument) {
-  try {
-    const icon = await readFile(join(process.cwd(), "public/brand/firekworks-icon.png"));
-    return await doc.embedPng(icon);
-  } catch {
-    return null;
-  }
 }

@@ -54,12 +54,14 @@ export function ButtonLink({
 
 export function Card({
   children,
-  className = ""
+  className = "",
+  id
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
-  return <section className={`card ${className}`}>{children}</section>;
+  return <section className={`card ${className}`} id={id}>{children}</section>;
 }
 
 export function CardHeader({
